@@ -99,6 +99,8 @@ github.com/HdrHistogram/hdrhistogram-go v1.1.2/go.mod h1:yDgFjdqOqDEKOvasDdhWNXY
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/MoeclubM/sing-box_mod v1.13.1-beta.2-v2bx.3 h1:o0+aYKzC2Tl3DciRgJdx3isWATzWORUC5tnAzvHeeDg=
 github.com/MoeclubM/sing-box_mod v1.13.1-beta.2-v2bx.3/go.mod h1:Di6rbMDc7GQxF1SrUlIsneX8gNte8ODTCJ2hwb+kJ2I=
+github.com/MoeclubM/sing-box_mod v1.13.7-v2bx.1 h1:Ewi/jnGaTxfhEyyNZQqcdV66/R//0A0Xu/tngi9zSQQ=
+github.com/MoeclubM/sing-box_mod v1.13.7-v2bx.1/go.mod h1:Di6rbMDc7GQxF1SrUlIsneX8gNte8ODTCJ2hwb+kJ2I=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/OpenDNS/vegadns2client v0.0.0-20180418235048-a3fa4a771d87 h1:xPMsUicZ3iosVPSIP7bW5EcGUzjiiMl1OYTe14y/R24=
 github.com/OpenDNS/vegadns2client v0.0.0-20180418235048-a3fa4a771d87/go.mod h1:iGLljf5n9GjT6kc0HBvyI1nOKnGQbNB66VzSNbK5iks=
