@@ -57,6 +57,9 @@ func (c *Controller) requestCert() error {
 			return fmt.Errorf("cert file path or key file path not exist")
 		}
 	case "dns", "http":
+		if c.CertConfig.CertDomain == "" {
+			return fmt.Errorf("cert domain not exist")
+		}
 		if c.CertConfig.CertFile == "" || c.CertConfig.KeyFile == "" {
 			return fmt.Errorf("cert file path or key file path not exist")
 		}
@@ -72,6 +75,9 @@ func (c *Controller) requestCert() error {
 			return fmt.Errorf("create lego cert error: %s", err)
 		}
 	case "self":
+		if c.CertConfig.CertDomain == "" {
+			return fmt.Errorf("cert domain not exist")
+		}
 		if c.CertConfig.CertFile == "" || c.CertConfig.KeyFile == "" {
 			return fmt.Errorf("cert file path or key file path not exist")
 		}

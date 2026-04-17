@@ -84,3 +84,22 @@ func TestNormalizeCertPathsResolvesPlaceholders(t *testing.T) {
 		t.Fatalf("unexpected key path: %s", controller.CertConfig.KeyFile)
 	}
 }
+
+func TestRequestCertRejectsMissingCertDomainForACME(t *testing.T) {
+	controller := &Controller{
+		Options: &conf.Options{
+			CertConfig: &conf.CertConfig{
+				CertMode: "http",
+				CertFile: "/tmp/test.pem",
+				KeyFile:  "/tmp/test.key",
+			},
+		},
+	}
+	err := controller.requestCert()
+	if err == nil {
+		t.Fatal("expected request cert error")
+	}
+	if !strings.Contains(err.Error(), "cert domain") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

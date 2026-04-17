@@ -55,3 +55,17 @@ func TestCertConfigSupportsChallengeAddressAndPortAliases(t *testing.T) {
 		t.Fatalf("unexpected challenge port: %s", cfg.ChallengePort)
 	}
 }
+
+func TestCertConfigDoesNotUseServerNameAsCertDomain(t *testing.T) {
+	var cfg CertConfig
+	err := cfg.UnmarshalJSON([]byte(`{
+		"mode":"http",
+		"server_name":"node.example.com"
+	}`))
+	if err != nil {
+		t.Fatalf("unmarshal cert config error: %v", err)
+	}
+	if cfg.CertDomain != "" {
+		t.Fatalf("unexpected cert domain: %s", cfg.CertDomain)
+	}
+}
