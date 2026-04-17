@@ -20,7 +20,13 @@ const (
 	Reality = 2
 )
 
+const (
+	APIVersionV1 = "v1"
+	APIVersionV2 = "v2"
+)
+
 type NodeInfo struct {
+	APIVersion   string
 	Id           int
 	Type         string
 	Security     int
@@ -42,13 +48,14 @@ type NodeInfo struct {
 }
 
 type CommonNode struct {
-	Protocol   string      `json:"protocol"`
-	ListenIP   string      `json:"listen_ip"`
-	Host       string      `json:"host"`
-	ServerPort int         `json:"server_port"`
-	ServerName string      `json:"server_name"`
-	Routes     []Route     `json:"routes"`
-	BaseConfig *BaseConfig `json:"base_config"`
+	Protocol   string           `json:"protocol"`
+	ListenIP   string           `json:"listen_ip"`
+	Host       string           `json:"host"`
+	ServerPort int              `json:"server_port"`
+	ServerName string           `json:"server_name"`
+	Routes     []Route          `json:"routes"`
+	BaseConfig *BaseConfig      `json:"base_config"`
+	CertConfig *conf.CertConfig `json:"cert_config"`
 }
 
 type Route struct {
@@ -82,13 +89,24 @@ type VAllssNode struct {
 }
 
 type TlsSettings struct {
-	ServerName  string `json:"server_name"`
-	Dest        string `json:"dest"`
-	ServerPort  string `json:"server_port"`
-	ShortId     string `json:"short_id"`
-	PrivateKey  string `json:"private_key"`
-	Mldsa65Seed string `json:"mldsa65Seed"`
-	Xver        uint64 `json:"xver,string"`
+	ServerName    string       `json:"server_name"`
+	AllowInsecure bool         `json:"allow_insecure"`
+	ECH           *ECHSettings `json:"ech"`
+	Dest          string       `json:"dest"`
+	ServerPort    string       `json:"server_port"`
+	ShortId       string       `json:"short_id"`
+	PrivateKey    string       `json:"private_key"`
+	Mldsa65Seed   string       `json:"mldsa65Seed"`
+	Xver          uint64       `json:"xver,string"`
+}
+
+type ECHSettings struct {
+	Enabled         bool       `json:"enabled"`
+	Config          StringList `json:"config,omitempty"`
+	ConfigPath      string     `json:"config_path,omitempty"`
+	QueryServerName string     `json:"query_server_name,omitempty"`
+	Key             StringList `json:"key,omitempty"`
+	KeyPath         string     `json:"key_path,omitempty"`
 }
 
 type EncSettings struct {
@@ -113,20 +131,26 @@ type ShadowsocksNode struct {
 
 type TrojanNode struct {
 	CommonNode
-	Network         string                `json:"network"`
-	NetworkSettings json.RawMessage       `json:"networkSettings"`
-	Multiplex       *conf.MultiplexConfig `json:"multiplex"`
+	Tls                 int                   `json:"tls"`
+	TlsSettings         TlsSettings           `json:"tls_settings"`
+	TlsSettingsBack     *TlsSettings          `json:"tlsSettings"`
+	Network             string                `json:"network"`
+	NetworkSettings     json.RawMessage       `json:"network_settings"`
+	NetworkSettingsBack json.RawMessage       `json:"networkSettings"`
+	Multiplex           *conf.MultiplexConfig `json:"multiplex"`
 }
 
 type TuicNode struct {
 	CommonNode
-	CongestionControl string `json:"congestion_control"`
-	ZeroRTTHandshake  bool   `json:"zero_rtt_handshake"`
+	TlsSettings       TlsSettings `json:"tls_settings"`
+	CongestionControl string      `json:"congestion_control"`
+	ZeroRTTHandshake  bool        `json:"zero_rtt_handshake"`
 }
 
 type AnyTlsNode struct {
 	CommonNode
-	PaddingScheme StringList `json:"padding_scheme,omitempty"`
+	TlsSettings   TlsSettings `json:"tls_settings"`
+	PaddingScheme StringList  `json:"padding_scheme,omitempty"`
 }
 
 type NaiveNode struct {
@@ -138,18 +162,20 @@ type NaiveNode struct {
 
 type HysteriaNode struct {
 	CommonNode
-	UpMbps   int    `json:"up_mbps"`
-	DownMbps int    `json:"down_mbps"`
-	Obfs     string `json:"obfs"`
+	TlsSettings TlsSettings `json:"tls_settings"`
+	UpMbps      int         `json:"up_mbps"`
+	DownMbps    int         `json:"down_mbps"`
+	Obfs        string      `json:"obfs"`
 }
 
 type Hysteria2Node struct {
 	CommonNode
-	Ignore_Client_Bandwidth bool   `json:"ignore_client_bandwidth"`
-	UpMbps                  int    `json:"up_mbps"`
-	DownMbps                int    `json:"down_mbps"`
-	ObfsType                string `json:"obfs"`
-	ObfsPassword            string `json:"obfs-password"`
+	TlsSettings             TlsSettings `json:"tls_settings"`
+	Ignore_Client_Bandwidth bool        `json:"ignore_client_bandwidth"`
+	UpMbps                  int         `json:"up_mbps"`
+	DownMbps                int         `json:"down_mbps"`
+	ObfsType                string      `json:"obfs"`
+	ObfsPassword            string      `json:"obfs-password"`
 }
 
 type RawDNS struct {
@@ -221,6 +247,14 @@ func normalizeResponseNodeType(requestedType string, meta nodeResponseMeta) (str
 	return nodeType, nil
 }
 
+func normalizeConfiguredNodeType(nodeType string) (string, error) {
+	normalized, err := normalizeResponseNodeType(nodeType, nodeResponseMeta{})
+	if err != nil {
+		return "", fmt.Errorf("missing node protocol in config")
+	}
+	return normalized, nil
+}
+
 func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 	path, err := c.serverPath("config")
 	if err != nil {
@@ -255,28 +289,63 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 	if r == nil {
 		return nil, fmt.Errorf("received nil response")
 	}
-	node = &NodeInfo{
-		Id: c.NodeId,
+	if c.useV2API {
+		node, err = decodeV2NodeInfo(r.Body(), c.NodeId, c.NodeType)
+	} else {
+		node, err = decodeV1NodeInfo(r.Body(), c.NodeId, c.NodeType)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if c.NodeType != node.Type {
+		c.NodeType = node.Type
+		c.setQueryParams(node.Type)
+	}
+
+	return node, nil
+}
+
+func decodeV1NodeInfo(body []byte, nodeID int, requestedType string) (*NodeInfo, error) {
+	nodeType, err := normalizeConfiguredNodeType(requestedType)
+	if err != nil {
+		return nil, err
+	}
+	node := newNodeInfo(nodeID, APIVersionV1)
+	node.Type = nodeType
+	return decodeNodeInfoBody(body, node)
+}
+
+func decodeV2NodeInfo(body []byte, nodeID int, requestedType string) (*NodeInfo, error) {
+	meta := nodeResponseMeta{}
+	if err := json.Unmarshal(body, &meta); err != nil {
+		return nil, fmt.Errorf("decode node metadata error: %s", err)
+	}
+	nodeType, err := normalizeResponseNodeType(requestedType, meta)
+	if err != nil {
+		return nil, err
+	}
+	node := newNodeInfo(nodeID, APIVersionV2)
+	node.Type = nodeType
+	return decodeNodeInfoBody(body, node)
+}
+
+func newNodeInfo(nodeID int, apiVersion string) *NodeInfo {
+	return &NodeInfo{
+		APIVersion: apiVersion,
+		Id:         nodeID,
 		RawDNS: RawDNS{
 			DNSMap:  make(map[string]map[string]interface{}),
 			DNSJson: []byte(""),
 		},
 	}
-	meta := nodeResponseMeta{}
-	if err = json.Unmarshal(r.Body(), &meta); err != nil {
-		return nil, fmt.Errorf("decode node metadata error: %s", err)
-	}
-	node.Type, err = normalizeResponseNodeType(c.NodeType, meta)
-	if err != nil {
-		return nil, err
-	}
-	// parse protocol params
+}
+
+func decodeNodeInfoBody(body []byte, node *NodeInfo) (*NodeInfo, error) {
 	var cm *CommonNode
 	switch node.Type {
 	case "vmess", "vless":
 		rsp := &VAllssNode{}
-		err = json.Unmarshal(r.Body(), rsp)
-		if err != nil {
+		if err := json.Unmarshal(body, rsp); err != nil {
 			return nil, fmt.Errorf("decode v2ray params error: %s", err)
 		}
 		if len(rsp.NetworkSettingsBack) > 0 {
@@ -292,8 +361,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		node.Security = node.VAllss.Tls
 	case "shadowsocks":
 		rsp := &ShadowsocksNode{}
-		err = json.Unmarshal(r.Body(), rsp)
-		if err != nil {
+		if err := json.Unmarshal(body, rsp); err != nil {
 			return nil, fmt.Errorf("decode shadowsocks params error: %s", err)
 		}
 		cm = &rsp.CommonNode
@@ -301,17 +369,27 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		node.Security = None
 	case "trojan":
 		rsp := &TrojanNode{}
-		err = json.Unmarshal(r.Body(), rsp)
-		if err != nil {
+		if err := json.Unmarshal(body, rsp); err != nil {
 			return nil, fmt.Errorf("decode trojan params error: %s", err)
+		}
+		if len(rsp.NetworkSettingsBack) > 0 {
+			rsp.NetworkSettings = rsp.NetworkSettingsBack
+			rsp.NetworkSettingsBack = nil
+		}
+		if rsp.TlsSettingsBack != nil {
+			rsp.TlsSettings = *rsp.TlsSettingsBack
+			rsp.TlsSettingsBack = nil
 		}
 		cm = &rsp.CommonNode
 		node.Trojan = rsp
-		node.Security = Tls
+		if rsp.Tls == Reality {
+			node.Security = Reality
+		} else {
+			node.Security = Tls
+		}
 	case "tuic":
 		rsp := &TuicNode{}
-		err = json.Unmarshal(r.Body(), rsp)
-		if err != nil {
+		if err := json.Unmarshal(body, rsp); err != nil {
 			return nil, fmt.Errorf("decode tuic params error: %s", err)
 		}
 		cm = &rsp.CommonNode
@@ -319,8 +397,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		node.Security = Tls
 	case "anytls":
 		rsp := &AnyTlsNode{}
-		err = json.Unmarshal(r.Body(), rsp)
-		if err != nil {
+		if err := json.Unmarshal(body, rsp); err != nil {
 			return nil, fmt.Errorf("decode anytls params error: %s", err)
 		}
 		cm = &rsp.CommonNode
@@ -328,8 +405,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		node.Security = Tls
 	case "hysteria":
 		rsp := &HysteriaNode{}
-		err = json.Unmarshal(r.Body(), rsp)
-		if err != nil {
+		if err := json.Unmarshal(body, rsp); err != nil {
 			return nil, fmt.Errorf("decode hysteria params error: %s", err)
 		}
 		cm = &rsp.CommonNode
@@ -337,8 +413,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		node.Security = Tls
 	case "hysteria2":
 		rsp := &Hysteria2Node{}
-		err = json.Unmarshal(r.Body(), rsp)
-		if err != nil {
+		if err := json.Unmarshal(body, rsp); err != nil {
 			return nil, fmt.Errorf("decode hysteria2 params error: %s", err)
 		}
 		cm = &rsp.CommonNode
@@ -346,8 +421,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		node.Security = Tls
 	case "naive":
 		rsp := &NaiveNode{}
-		err = json.Unmarshal(r.Body(), rsp)
-		if err != nil {
+		if err := json.Unmarshal(body, rsp); err != nil {
 			return nil, fmt.Errorf("decode naive params error: %s", err)
 		}
 		if rsp.TlsSettingsBack != nil {
@@ -363,16 +437,17 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 	if cm == nil {
 		return nil, fmt.Errorf("decode node params error: missing common config")
 	}
-	if c.NodeType != node.Type {
-		c.NodeType = node.Type
-		c.setQueryParams(node.Type)
+	if err := finalizeNodeInfo(node, cm); err != nil {
+		return nil, err
 	}
+	return node, nil
+}
 
-	// parse rules and dns
+func finalizeNodeInfo(node *NodeInfo, cm *CommonNode) error {
 	for i := range cm.Routes {
 		matchs, parseErr := parseRouteMatch(cm.Routes[i].Match)
 		if parseErr != nil {
-			return nil, fmt.Errorf("decode route[%d] match error: %w", i, parseErr)
+			return fmt.Errorf("decode route[%d] match error: %w", i, parseErr)
 		}
 		if len(matchs) == 0 {
 			continue
@@ -381,40 +456,65 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		case "block":
 			for _, v := range matchs {
 				if strings.HasPrefix(v, "protocol:") {
-					// protocol
 					node.Rules.Protocol = append(node.Rules.Protocol, strings.TrimPrefix(v, "protocol:"))
 				} else {
-					// domain
 					node.Rules.Regexp = append(node.Rules.Regexp, strings.TrimPrefix(v, "regexp:"))
 				}
 			}
 		case "dns":
-			var domains []string
-			domains = append(domains, matchs...)
+			domains := append([]string(nil), matchs...)
 			if matchs[0] != "main" {
 				node.RawDNS.DNSMap[strconv.Itoa(i)] = map[string]interface{}{
 					"address": cm.Routes[i].ActionValue,
 					"domains": domains,
 				}
 			} else {
-				dns := []byte(strings.Join(matchs[1:], ""))
-				node.RawDNS.DNSJson = dns
+				node.RawDNS.DNSJson = []byte(strings.Join(matchs[1:], ""))
 			}
 		}
 	}
-
-	// set interval
 	if cm.BaseConfig != nil {
 		node.PushInterval = intervalToTime(cm.BaseConfig.PushInterval)
 		node.PullInterval = intervalToTime(cm.BaseConfig.PullInterval)
 	}
-
 	node.Common = cm
-	// clear
 	cm.Routes = nil
 	cm.BaseConfig = nil
+	return nil
+}
 
-	return node, nil
+func (n *NodeInfo) ECH() *ECHSettings {
+	switch n.Type {
+	case "vmess", "vless":
+		if n.VAllss != nil {
+			return n.VAllss.TlsSettings.ECH
+		}
+	case "trojan":
+		if n.Trojan != nil {
+			return n.Trojan.TlsSettings.ECH
+		}
+	case "naive":
+		if n.Naive != nil {
+			return n.Naive.TlsSettings.ECH
+		}
+	case "tuic":
+		if n.Tuic != nil {
+			return n.Tuic.TlsSettings.ECH
+		}
+	case "anytls":
+		if n.AnyTls != nil {
+			return n.AnyTls.TlsSettings.ECH
+		}
+	case "hysteria":
+		if n.Hysteria != nil {
+			return n.Hysteria.TlsSettings.ECH
+		}
+	case "hysteria2":
+		if n.Hysteria2 != nil {
+			return n.Hysteria2.TlsSettings.ECH
+		}
+	}
+	return nil
 }
 
 func parseRouteMatch(match interface{}) ([]string, error) {

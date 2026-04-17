@@ -12,14 +12,10 @@ import (
 	"github.com/MoeclubM/V2bX/conf"
 )
 
-func TestClientGetNodeInfoFallsBackToV1(t *testing.T) {
-	var handshakeHits int32
+func TestClientGetNodeInfoUsesConfiguredV1Path(t *testing.T) {
 	var v1ConfigHits int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v2/server/handshake":
-			atomic.AddInt32(&handshakeHits, 1)
-			http.NotFound(w, r)
 		case "/api/v1/server/UniProxy/config":
 			atomic.AddInt32(&v1ConfigHits, 1)
 			w.Header().Set("Content-Type", "application/json")
@@ -47,9 +43,6 @@ func TestClientGetNodeInfoFallsBackToV1(t *testing.T) {
 	if node == nil {
 		t.Fatal("expected node info")
 	}
-	if atomic.LoadInt32(&handshakeHits) != 1 {
-		t.Fatalf("expected handshake probe once, got %d", atomic.LoadInt32(&handshakeHits))
-	}
 	if atomic.LoadInt32(&v1ConfigHits) != 1 {
 		t.Fatalf("expected v1 config request once, got %d", atomic.LoadInt32(&v1ConfigHits))
 	}
@@ -62,20 +55,14 @@ func TestClientGetNodeInfoFallsBackToV1(t *testing.T) {
 	if node.Type != "vmess" {
 		t.Fatalf("unexpected node type: %s", node.Type)
 	}
+	if node.APIVersion != APIVersionV1 {
+		t.Fatalf("unexpected api version: %s", node.APIVersion)
+	}
 }
 
-func TestClientGetNodeInfoDetectsV2AndNormalizesType(t *testing.T) {
+func TestClientGetNodeInfoUsesConfiguredV2PathAndNormalizesType(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v2/server/handshake":
-			if r.URL.Query().Get("machine_id") != "9" {
-				t.Fatalf("missing machine_id in handshake query: %s", r.URL.RawQuery)
-			}
-			if r.URL.Query().Get("node_type") != "v2node" {
-				t.Fatalf("unexpected node_type in handshake query: %s", r.URL.RawQuery)
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"websocket":{"enabled":false}}`)
 		case "/api/v2/server/config":
 			if r.URL.Query().Get("machine_id") != "9" {
 				t.Fatalf("missing machine_id in config query: %s", r.URL.RawQuery)
@@ -121,6 +108,77 @@ func TestClientGetNodeInfoDetectsV2AndNormalizesType(t *testing.T) {
 	if client.NodeType != "hysteria2" {
 		t.Fatalf("expected client node type to update, got %s", client.NodeType)
 	}
+	if node.APIVersion != APIVersionV2 {
+		t.Fatalf("unexpected api version: %s", node.APIVersion)
+	}
+}
+
+func TestClientGetNodeInfoParsesV2CertAndECH(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/server/config" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{
+			"protocol":"vmess",
+			"server_port":443,
+			"tls":1,
+			"network":"ws",
+			"networkSettings":{"path":"/ws"},
+			"tls_settings":{
+				"server_name":"node.example.com",
+				"ech":{
+					"enabled":true,
+					"key":"ECH-KEY",
+					"config":"ECH-CONFIG",
+					"query_server_name":"ech.example.com"
+				}
+			},
+			"cert_config":{
+				"cert_mode":"none",
+				"certificate":"CERT-PEM",
+				"key":"KEY-PEM"
+			},
+			"base_config":{"push_interval":60,"pull_interval":60}
+		}`)
+	}))
+	defer server.Close()
+
+	client, err := New(&conf.ApiConfig{
+		APIHost:    server.URL,
+		Key:        "token",
+		NodeID:     1,
+		NodeType:   "v2node",
+		APIVersion: "v2",
+	})
+	if err != nil {
+		t.Fatalf("new client error: %v", err)
+	}
+
+	node, err := client.GetNodeInfo()
+	if err != nil {
+		t.Fatalf("get node info error: %v", err)
+	}
+	if node == nil || node.Common == nil || node.Common.CertConfig == nil {
+		t.Fatal("expected cert config")
+	}
+	if len(node.Common.CertConfig.Certificate) != 1 || node.Common.CertConfig.Certificate[0] != "CERT-PEM" {
+		t.Fatalf("unexpected inline certificate: %+v", node.Common.CertConfig.Certificate)
+	}
+	ech := node.ECH()
+	if ech == nil || !ech.Enabled {
+		t.Fatal("expected ech config")
+	}
+	if len(ech.Key) != 1 || ech.Key[0] != "ECH-KEY" {
+		t.Fatalf("unexpected ech key: %+v", ech.Key)
+	}
+	if len(ech.Config) != 1 || ech.Config[0] != "ECH-CONFIG" {
+		t.Fatalf("unexpected ech config: %+v", ech.Config)
+	}
+	if ech.QueryServerName != "ech.example.com" {
+		t.Fatalf("unexpected query server name: %s", ech.QueryServerName)
+	}
 }
 
 func TestClientReportUserTrafficUsesV2Report(t *testing.T) {
@@ -129,9 +187,6 @@ func TestClientReportUserTrafficUsesV2Report(t *testing.T) {
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v2/server/handshake":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"websocket":{"enabled":false}}`)
 		case "/api/v2/server/report":
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {

@@ -19,8 +19,8 @@ func TestNodesConfigSupportsLegacyArray(t *testing.T) {
 	if len(nodes.V1) != 1 {
 		t.Fatalf("unexpected v1 node count: %d", len(nodes.V1))
 	}
-	if len(nodes.V2Nodes) != 0 || len(nodes.Machines) != 0 {
-		t.Fatalf("unexpected v2 config: %+v %+v", nodes.V2Nodes, nodes.Machines)
+	if len(nodes.Machines) != 0 {
+		t.Fatalf("unexpected machine config: %+v", nodes.Machines)
 	}
 	runtimeNodes := nodes.RuntimeNodeConfigs()
 	if len(runtimeNodes) != 1 {
@@ -31,7 +31,7 @@ func TestNodesConfigSupportsLegacyArray(t *testing.T) {
 	}
 }
 
-func TestNodesConfigSupportsGroupedConfig(t *testing.T) {
+func TestNodesConfigSupportsGroupedV1AndLegacyV2Machines(t *testing.T) {
 	var nodes NodesConfig
 	data := []byte(`{
 		"V1": [
@@ -43,14 +43,6 @@ func TestNodesConfigSupportsGroupedConfig(t *testing.T) {
 			}
 		],
 		"V2": {
-			"Nodes": [
-				{
-					"ApiHost": "http://127.0.0.1",
-					"ApiKey": "test",
-					"MachineID": 9,
-					"NodeID": 2
-				}
-			],
 			"Machines": [
 				{
 					"ApiHost": "http://127.0.0.1",
@@ -66,42 +58,62 @@ func TestNodesConfigSupportsGroupedConfig(t *testing.T) {
 	if len(nodes.V1) != 1 {
 		t.Fatalf("unexpected v1 node count: %d", len(nodes.V1))
 	}
-	if len(nodes.V2Nodes) != 1 {
-		t.Fatalf("unexpected v2 node count: %d", len(nodes.V2Nodes))
-	}
 	if len(nodes.Machines) != 1 {
 		t.Fatalf("unexpected machine count: %d", len(nodes.Machines))
 	}
 	runtimeNodes := nodes.RuntimeNodeConfigs()
-	if len(runtimeNodes) != 2 {
+	if len(runtimeNodes) != 1 {
 		t.Fatalf("unexpected runtime node count: %d", len(runtimeNodes))
-	}
-	if runtimeNodes[1].ApiConfig.NodeType != "v2node" {
-		t.Fatalf("unexpected v2 runtime node type: %s", runtimeNodes[1].ApiConfig.NodeType)
-	}
-	if runtimeNodes[1].ApiConfig.MachineID != 9 {
-		t.Fatalf("unexpected machine id: %d", runtimeNodes[1].ApiConfig.MachineID)
 	}
 }
 
-func TestV2MachineConfigRuntimeAPIConfig(t *testing.T) {
-	cfg := V2MachineConfig{
-		ApiConfig: V2MachineApiConfig{
-			APIHost:   "http://127.0.0.1",
-			APISendIP: "127.0.0.2",
-			MachineID: 9,
-			Key:       "test",
-			Timeout:   30,
-		},
+func TestV2MachineConfigUsesDefaultRuntimeOptions(t *testing.T) {
+	var cfg V2MachineConfig
+	data := []byte(`{
+		"ApiHost": "http://127.0.0.1",
+		"ApiKey": "test",
+		"MachineID": 9
+	}`)
+	if err := cfg.UnmarshalJSON(data); err != nil {
+		t.Fatalf("unmarshal machine config error: %v", err)
 	}
-	apiConfig := cfg.RuntimeAPIConfig(12)
-	if apiConfig.NodeType != "v2node" {
-		t.Fatalf("unexpected node type: %s", apiConfig.NodeType)
+	if cfg.ApiConfig.Timeout != 30 {
+		t.Fatalf("unexpected timeout: %d", cfg.ApiConfig.Timeout)
 	}
-	if apiConfig.NodeID != 12 {
-		t.Fatalf("unexpected node id: %d", apiConfig.NodeID)
+	if cfg.Options.ListenIP != "0.0.0.0" {
+		t.Fatalf("unexpected listen ip: %s", cfg.Options.ListenIP)
 	}
-	if apiConfig.MachineID != 9 {
-		t.Fatalf("unexpected machine id: %d", apiConfig.MachineID)
+	if cfg.Options.DeviceOnlineMinTraffic != 200 {
+		t.Fatalf("unexpected device traffic threshold: %d", cfg.Options.DeviceOnlineMinTraffic)
+	}
+	if cfg.Options.SingOptions == nil {
+		t.Fatal("expected default sing options")
+	}
+	if cfg.Options.CertConfig == nil {
+		t.Fatal("expected default cert config")
+	}
+}
+
+func TestV2MachineConfigIgnoresLocalOptionsFromJSON(t *testing.T) {
+	var cfg V2MachineConfig
+	data := []byte(`{
+		"ApiHost": "http://127.0.0.1",
+		"ApiKey": "test",
+		"MachineID": 9,
+		"ListenIP": "::",
+		"DeviceOnlineMinTraffic": 1,
+		"EnableSniff": false
+	}`)
+	if err := cfg.UnmarshalJSON(data); err != nil {
+		t.Fatalf("unmarshal machine config error: %v", err)
+	}
+	if cfg.Options.ListenIP != "0.0.0.0" {
+		t.Fatalf("unexpected listen ip: %s", cfg.Options.ListenIP)
+	}
+	if cfg.Options.DeviceOnlineMinTraffic != 200 {
+		t.Fatalf("unexpected device traffic threshold: %d", cfg.Options.DeviceOnlineMinTraffic)
+	}
+	if !cfg.Options.SingOptions.SniffEnabled {
+		t.Fatal("expected default sniff setting")
 	}
 }

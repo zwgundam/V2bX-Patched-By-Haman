@@ -47,6 +47,34 @@ func TestConfSupportsTopLevelNodesAndMachines(t *testing.T) {
 	}
 }
 
+func TestConfSupportsMultipleTopLevelMachinesWithMinimalFields(t *testing.T) {
+	c := New()
+	data := []byte(`{
+		"Nodes": [],
+		"Machines": [
+			{
+				"ApiHost": "http://a.example",
+				"ApiKey": "key-a",
+				"MachineID": 1
+			},
+			{
+				"ApiHost": "http://b.example",
+				"ApiKey": "key-b",
+				"MachineID": 2
+			}
+		]
+	}`)
+	if err := json.Unmarshal(data, c); err != nil {
+		t.Fatalf("unmarshal config error: %v", err)
+	}
+	if len(c.NodeConfig.Machines) != 2 {
+		t.Fatalf("unexpected machine count: %d", len(c.NodeConfig.Machines))
+	}
+	if c.NodeConfig.Machines[1].ApiConfig.MachineID != 2 {
+		t.Fatalf("unexpected machine id: %d", c.NodeConfig.Machines[1].ApiConfig.MachineID)
+	}
+}
+
 func TestConfTopLevelMachinesOverrideLegacyNodesV2(t *testing.T) {
 	c := New()
 	data := []byte(`{

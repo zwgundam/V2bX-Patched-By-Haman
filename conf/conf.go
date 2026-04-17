@@ -31,7 +31,6 @@ func (p *Conf) UnmarshalJSON(data []byte) error {
 	p.CoresConfig = raw.CoresConfig
 	p.NodeConfig = raw.NodeConfig
 	if raw.V2Config != nil {
-		p.NodeConfig.V2Nodes = raw.V2Config.Nodes
 		p.NodeConfig.Machines = raw.V2Config.Machines
 	}
 	if raw.Machines != nil {

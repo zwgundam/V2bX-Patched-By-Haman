@@ -20,23 +20,16 @@ type NodeConfig struct {
 
 type NodesConfig struct {
 	V1       []V1NodeConfig    `json:"V1"`
-	V2Nodes  []V2NodeConfig    `json:"-"`
 	Machines []V2MachineConfig `json:"-"`
 }
 
 type V2ConfigGroup struct {
-	Nodes    []V2NodeConfig    `json:"Nodes"`
 	Machines []V2MachineConfig `json:"Machines"`
 }
 
 type V1NodeConfig struct {
 	ApiConfig V1ApiConfig `json:"-"`
 	Options   Options     `json:"-"`
-}
-
-type V2NodeConfig struct {
-	ApiConfig V2NodeApiConfig `json:"-"`
-	Options   Options         `json:"-"`
 }
 
 type V2MachineConfig struct {
@@ -59,6 +52,7 @@ type ApiConfig struct {
 	NodeType     string `json:"NodeType"`
 	Timeout      int    `json:"Timeout"`
 	RuleListPath string `json:"RuleListPath"`
+	APIVersion   string `json:"-"`
 }
 
 type V1ApiConfig struct {
@@ -67,16 +61,6 @@ type V1ApiConfig struct {
 	NodeID       int    `json:"NodeID"`
 	Key          string `json:"ApiKey"`
 	NodeType     string `json:"NodeType"`
-	Timeout      int    `json:"Timeout"`
-	RuleListPath string `json:"RuleListPath"`
-}
-
-type V2NodeApiConfig struct {
-	APIHost      string `json:"ApiHost"`
-	APISendIP    string `json:"ApiSendIP"`
-	MachineID    int    `json:"MachineID"`
-	NodeID       int    `json:"NodeID"`
-	Key          string `json:"ApiKey"`
 	Timeout      int    `json:"Timeout"`
 	RuleListPath string `json:"RuleListPath"`
 }
@@ -94,7 +78,6 @@ func (n *NodesConfig) UnmarshalJSON(data []byte) error {
 	legacy := make([]V1NodeConfig, 0)
 	if err := json.Unmarshal(data, &legacy); err == nil {
 		n.V1 = legacy
-		n.V2Nodes = nil
 		n.Machines = nil
 		return nil
 	}
@@ -106,18 +89,14 @@ func (n *NodesConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	n.V1 = grouped.V1
-	n.V2Nodes = grouped.V2.Nodes
 	n.Machines = grouped.V2.Machines
 	return nil
 }
 
 func (n NodesConfig) RuntimeNodeConfigs() []NodeConfig {
-	configs := make([]NodeConfig, 0, len(n.V1)+len(n.V2Nodes))
+	configs := make([]NodeConfig, 0, len(n.V1))
 	for i := range n.V1 {
 		configs = append(configs, n.V1[i].RuntimeNodeConfig())
-	}
-	for i := range n.V2Nodes {
-		configs = append(configs, n.V2Nodes[i].RuntimeNodeConfig())
 	}
 	return configs
 }
@@ -128,22 +107,6 @@ func (n *V1NodeConfig) UnmarshalJSON(data []byte) (err error) {
 		return err
 	}
 	n.ApiConfig = V1ApiConfig{
-		APIHost: "http://127.0.0.1",
-		Timeout: 30,
-	}
-	if err = unmarshalNodeAPI(raw, data, &n.ApiConfig); err != nil {
-		return err
-	}
-	n.Options = defaultNodeOptions()
-	return unmarshalNodeOptions(raw, data, &n.Options)
-}
-
-func (n *V2NodeConfig) UnmarshalJSON(data []byte) (err error) {
-	data, raw, err := loadNodeConfigData(data)
-	if err != nil {
-		return err
-	}
-	n.ApiConfig = V2NodeApiConfig{
 		APIHost: "http://127.0.0.1",
 		Timeout: 30,
 	}
@@ -167,7 +130,7 @@ func (n *V2MachineConfig) UnmarshalJSON(data []byte) (err error) {
 		return err
 	}
 	n.Options = defaultNodeOptions()
-	return unmarshalNodeOptions(raw, data, &n.Options)
+	return nil
 }
 
 func (n V1NodeConfig) RuntimeNodeConfig() NodeConfig {
@@ -180,22 +143,7 @@ func (n V1NodeConfig) RuntimeNodeConfig() NodeConfig {
 			NodeType:     n.ApiConfig.NodeType,
 			Timeout:      n.ApiConfig.Timeout,
 			RuleListPath: n.ApiConfig.RuleListPath,
-		},
-		Options: n.Options,
-	}
-}
-
-func (n V2NodeConfig) RuntimeNodeConfig() NodeConfig {
-	return NodeConfig{
-		ApiConfig: ApiConfig{
-			APIHost:      n.ApiConfig.APIHost,
-			APISendIP:    n.ApiConfig.APISendIP,
-			MachineID:    n.ApiConfig.MachineID,
-			NodeID:       n.ApiConfig.NodeID,
-			Key:          n.ApiConfig.Key,
-			NodeType:     "v2node",
-			Timeout:      n.ApiConfig.Timeout,
-			RuleListPath: n.ApiConfig.RuleListPath,
+			APIVersion:   "v1",
 		},
 		Options: n.Options,
 	}
@@ -211,6 +159,7 @@ func (n V2MachineConfig) RuntimeAPIConfig(nodeID int) ApiConfig {
 		NodeType:     "v2node",
 		Timeout:      n.ApiConfig.Timeout,
 		RuleListPath: n.ApiConfig.RuleListPath,
+		APIVersion:   "v2",
 	}
 }
 
@@ -261,9 +210,12 @@ func unmarshalNodeAPI(raw rawNodeConfig, data []byte, api any) error {
 
 func defaultNodeOptions() Options {
 	return Options{
-		ListenIP:   "0.0.0.0",
-		SendIP:     "0.0.0.0",
-		CertConfig: NewCertConfig(),
+		ListenIP:               "0.0.0.0",
+		SendIP:                 "0.0.0.0",
+		DeviceOnlineMinTraffic: 200,
+		ReportMinTraffic:       0,
+		SingOptions:            NewSingOptions(),
+		CertConfig:             NewCertConfig(),
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/MoeclubM/V2bX/api/panel"
 	"github.com/MoeclubM/V2bX/common/task"
+	"github.com/MoeclubM/V2bX/conf"
 	vCore "github.com/MoeclubM/V2bX/core"
 	"github.com/MoeclubM/V2bX/limiter"
 	log "github.com/sirupsen/logrus"
@@ -26,10 +27,9 @@ func (c *Controller) startTasks(node *panel.NodeInfo) {
 	_ = c.nodeInfoMonitorPeriodic.Start(false)
 	log.WithField("tag", c.tag).Info("Start report node status")
 	_ = c.userReportPeriodic.Start(false)
-	if node.Security == panel.Tls {
+	if node.Security == panel.Tls && c.CertConfig != nil && len(c.CertConfig.Certificate) == 0 {
 		switch c.CertConfig.CertMode {
-		case "none", "", "file", "self":
-		default:
+		case "dns", "http":
 			c.renewCertPeriodic = &task.Task{
 				Interval: time.Hour * 24,
 				Execute:  c.renewCertTask,
@@ -37,6 +37,7 @@ func (c *Controller) startTasks(node *panel.NodeInfo) {
 			log.WithField("tag", c.tag).Info("Start renew cert")
 			// delay to start renewCert
 			_ = c.renewCertPeriodic.Start(true)
+		default:
 		}
 	}
 	if c.LimitConfig.EnableDynamicSpeedLimit {
@@ -118,6 +119,13 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			}).Error("Update Rule failed")
 			return nil
 		}
+		if newN.APIVersion == panel.APIVersionV2 {
+			if newN.Common != nil && newN.Common.CertConfig != nil {
+				c.CertConfig = newN.Common.CertConfig
+			} else {
+				c.CertConfig = conf.NewCertConfig()
+			}
+		}
 
 		// check cert
 		if newN.Security == panel.Tls {
@@ -163,6 +171,21 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			c.userReportPeriodic.Interval = newN.PushInterval
 			c.userReportPeriodic.Close()
 			_ = c.userReportPeriodic.Start(false)
+		}
+		if c.renewCertPeriodic != nil {
+			c.renewCertPeriodic.Close()
+			c.renewCertPeriodic = nil
+		}
+		if newN.Security == panel.Tls && c.CertConfig != nil && len(c.CertConfig.Certificate) == 0 {
+			switch c.CertConfig.CertMode {
+			case "dns", "http":
+				c.renewCertPeriodic = &task.Task{
+					Interval: time.Hour * 24,
+					Execute:  c.renewCertTask,
+				}
+				log.WithField("tag", c.tag).Info("Start renew cert")
+				_ = c.renewCertPeriodic.Start(true)
+			}
 		}
 		log.WithField("tag", c.tag).Infof("Added %d new users", len(c.userList))
 		// exit

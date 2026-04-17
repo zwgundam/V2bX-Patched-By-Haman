@@ -57,7 +57,11 @@ type H2NetworkConfig struct {
 }
 
 func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (option.Inbound, error) {
-	addr, err := netip.ParseAddr(c.ListenIP)
+	listenIP := c.ListenIP
+	if info.APIVersion == panel.APIVersionV2 && info.Common != nil && info.Common.ListenIP != "" {
+		listenIP = info.Common.ListenIP
+	}
+	addr, err := netip.ParseAddr(listenIP)
 	if err != nil {
 		return option.Inbound{}, fmt.Errorf("the listen ip not vail")
 	}
@@ -96,10 +100,20 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 		if c.CertConfig == nil {
 			return option.Inbound{}, fmt.Errorf("the CertConfig is not vail")
 		}
-		switch c.CertConfig.CertMode {
-		case "none", "":
-			break // disable
-		default:
+		if len(c.CertConfig.Certificate) > 0 || len(c.CertConfig.Key) > 0 {
+			if len(c.CertConfig.Certificate) == 0 || len(c.CertConfig.Key) == 0 {
+				return option.Inbound{}, fmt.Errorf("tls certificate or key not found")
+			}
+			tls.Enabled = true
+			tls.Certificate = badoption.Listable[string](c.CertConfig.Certificate)
+			tls.Key = badoption.Listable[string](c.CertConfig.Key)
+		} else {
+			switch c.CertConfig.CertMode {
+			case "none", "":
+				if c.CertConfig.CertFile == "" || c.CertConfig.KeyFile == "" {
+					return option.Inbound{}, fmt.Errorf("tls certificate not found")
+				}
+			}
 			tls.Enabled = true
 			tls.CertificatePath = c.CertConfig.CertFile
 			tls.KeyPath = c.CertConfig.KeyFile
@@ -128,6 +142,16 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 				},
 			},
 			MaxTimeDifference: badoption.Duration(mtd),
+		}
+	}
+	if ech := info.ECH(); ech != nil && ech.Enabled {
+		if len(ech.Key) == 0 && ech.KeyPath == "" {
+			return option.Inbound{}, fmt.Errorf("ech key not found")
+		}
+		tls.ECH = &option.InboundECHOptions{
+			Enabled: true,
+			Key:     badoption.Listable[string](ech.Key),
+			KeyPath: ech.KeyPath,
 		}
 	}
 	in := option.Inbound{

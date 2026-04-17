@@ -30,8 +30,22 @@ func (c *Controller) renewCertTask() error {
 }
 
 func (c *Controller) requestCert() error {
+	if c.CertConfig == nil {
+		return fmt.Errorf("tls node requires cert config")
+	}
+	if len(c.CertConfig.Certificate) > 0 || len(c.CertConfig.Key) > 0 {
+		if len(c.CertConfig.Certificate) == 0 || len(c.CertConfig.Key) == 0 {
+			return fmt.Errorf("inline certificate or key not exist")
+		}
+		return nil
+	}
+	if c.CertConfig.CertMode == "" || c.CertConfig.CertMode == "none" {
+		if c.CertConfig.CertFile != "" && c.CertConfig.KeyFile != "" {
+			return nil
+		}
+		return fmt.Errorf("tls node requires cert config")
+	}
 	switch c.CertConfig.CertMode {
-	case "none", "":
 	case "file":
 		if c.CertConfig.CertFile == "" || c.CertConfig.KeyFile == "" {
 			return fmt.Errorf("cert file path or key file path not exist")
