@@ -9,9 +9,13 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MoeclubM/V2bX/common/file"
+	"github.com/MoeclubM/V2bX/conf"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,6 +43,8 @@ func (c *Controller) requestCert() error {
 		}
 		return nil
 	}
+	c.ensureMachineCertPaths()
+	c.normalizeCertPaths()
 	if c.CertConfig.CertMode == "" || c.CertConfig.CertMode == "none" {
 		if c.CertConfig.CertFile != "" && c.CertConfig.KeyFile != "" {
 			return nil
@@ -83,6 +89,55 @@ func (c *Controller) requestCert() error {
 		return fmt.Errorf("unsupported certmode: %s", c.CertConfig.CertMode)
 	}
 	return nil
+}
+
+func (c *Controller) ensureMachineCertPaths() {
+	if c.CertConfig == nil || c.apiClient == nil || c.apiClient.MachineID <= 0 || c.apiClient.NodeId <= 0 {
+		return
+	}
+	switch c.CertConfig.CertMode {
+	case "http", "dns", "self":
+	default:
+		return
+	}
+	baseDir := filepath.Join("/etc/V2bX", "cert", fmt.Sprintf("machine-%d", c.apiClient.MachineID))
+	if c.CertConfig.CertFile == "" {
+		c.CertConfig.CertFile = filepath.Join(baseDir, fmt.Sprintf("node-%d.pem", c.apiClient.NodeId))
+	}
+	if c.CertConfig.KeyFile == "" {
+		c.CertConfig.KeyFile = filepath.Join(baseDir, fmt.Sprintf("node-%d.key", c.apiClient.NodeId))
+	}
+}
+
+func (c *Controller) normalizeCertPaths() {
+	if c.CertConfig == nil {
+		return
+	}
+	machineID := 0
+	nodeID := 0
+	if c.apiClient != nil {
+		machineID = c.apiClient.MachineID
+		nodeID = c.apiClient.NodeId
+	}
+	if c.CertConfig.CertFile != "" {
+		c.CertConfig.CertFile = resolveCertPath(c.CertConfig.CertFile, c.CertConfig, machineID, nodeID)
+	}
+	if c.CertConfig.KeyFile != "" {
+		c.CertConfig.KeyFile = resolveCertPath(c.CertConfig.KeyFile, c.CertConfig, machineID, nodeID)
+	}
+}
+
+func resolveCertPath(rawPath string, certConfig *conf.CertConfig, machineID, nodeID int) string {
+	if rawPath == "" || certConfig == nil {
+		return rawPath
+	}
+	replacer := strings.NewReplacer(
+		"{domain}", certConfig.CertDomain,
+		"{email}", certConfig.Email,
+		"{machine_id}", strconv.Itoa(machineID),
+		"{node_id}", strconv.Itoa(nodeID),
+	)
+	return replacer.Replace(rawPath)
 }
 
 func generateSelfSslCertificate(domain, certPath, keyPath string) error {

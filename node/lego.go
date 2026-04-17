@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"encoding/json"
@@ -32,7 +31,7 @@ type Lego struct {
 }
 
 func NewLego(config *conf.CertConfig) (*Lego, error) {
-	user, err := NewLegoUser(path.Join(path.Dir(config.CertFile),
+	user, err := NewLegoUser(path.Join(path.Dir(resolveCertPath(config.CertFile, config, 0, 0)),
 		"user",
 		fmt.Sprintf("user-%s.json", config.Email)),
 		config.Email)
@@ -70,7 +69,11 @@ func checkPath(p string) error {
 func (l *Lego) SetProvider() error {
 	switch l.config.CertMode {
 	case "http":
-		err := l.client.Challenge.SetHTTP01Provider(http01.NewProviderServer("", "80"))
+		port := l.config.ChallengePort
+		if port == "" {
+			port = "80"
+		}
+		err := l.client.Challenge.SetHTTP01Provider(http01.NewProviderServer(l.config.ChallengeAddress, port))
 		if err != nil {
 			return err
 		}
@@ -107,7 +110,7 @@ func (l *Lego) CreateCert() (err error) {
 }
 
 func (l *Lego) RenewCert() error {
-	file, err := os.ReadFile(l.config.CertFile)
+	file, err := os.ReadFile(l.parseParams(l.config.CertFile))
 	if err != nil {
 		return fmt.Errorf("read cert file error: %s", err)
 	}
@@ -142,24 +145,24 @@ func (l *Lego) CheckCert(file []byte) (bool, error) {
 	return true, nil
 }
 func (l *Lego) parseParams(path string) string {
-	r := strings.NewReplacer("{domain}", l.config.CertDomain,
-		"{email}", l.config.Email)
-	return r.Replace(path)
+	return resolveCertPath(path, l.config, 0, 0)
 }
 func (l *Lego) writeCert(certificates *certificate.Resource) error {
-	err := checkPath(l.config.CertFile)
+	certPath := l.parseParams(l.config.CertFile)
+	err := checkPath(certPath)
 	if err != nil {
 		return fmt.Errorf("check path error: %s", err)
 	}
-	err = os.WriteFile(l.parseParams(l.config.CertFile), certificates.Certificate, 0644)
+	err = os.WriteFile(certPath, certificates.Certificate, 0644)
 	if err != nil {
 		return err
 	}
-	err = checkPath(l.config.KeyFile)
+	keyPath := l.parseParams(l.config.KeyFile)
+	err = checkPath(keyPath)
 	if err != nil {
 		return fmt.Errorf("check path error: %s", err)
 	}
-	err = os.WriteFile(l.parseParams(l.config.KeyFile), certificates.PrivateKey, 0644)
+	err = os.WriteFile(keyPath, certificates.PrivateKey, 0644)
 	if err != nil {
 		return err
 	}
