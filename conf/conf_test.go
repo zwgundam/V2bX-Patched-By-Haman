@@ -14,28 +14,24 @@ func TestConf_LoadFromPath(t *testing.T) {
 	t.Log(c.LoadFromPath("../example/config.json"), c.NodeConfig)
 }
 
-func TestConfSupportsTopLevelV2Machines(t *testing.T) {
+func TestConfSupportsTopLevelNodesAndMachines(t *testing.T) {
 	c := New()
 	data := []byte(`{
-		"Nodes": {
-			"V1": [
-				{
-					"ApiHost": "http://127.0.0.1",
-					"ApiKey": "test",
-					"NodeID": 1,
-					"NodeType": "vmess"
-				}
-			]
-		},
-		"V2": {
-			"Machines": [
-				{
-					"ApiHost": "http://127.0.0.1",
-					"ApiKey": "test",
-					"MachineID": 9
-				}
-			]
-		}
+		"Nodes": [
+			{
+				"ApiHost": "http://127.0.0.1",
+				"ApiKey": "test",
+				"NodeID": 1,
+				"NodeType": "vmess"
+			}
+		],
+		"Machines": [
+			{
+				"ApiHost": "http://127.0.0.1",
+				"ApiKey": "test",
+				"MachineID": 9
+			}
+		]
 	}`)
 	if err := json.Unmarshal(data, c); err != nil {
 		t.Fatalf("unmarshal config error: %v", err)
@@ -51,7 +47,7 @@ func TestConfSupportsTopLevelV2Machines(t *testing.T) {
 	}
 }
 
-func TestConfTopLevelV2OverridesLegacyNodesV2(t *testing.T) {
+func TestConfTopLevelMachinesOverrideLegacyNodesV2(t *testing.T) {
 	c := New()
 	data := []byte(`{
 		"Nodes": {
@@ -66,15 +62,13 @@ func TestConfTopLevelV2OverridesLegacyNodesV2(t *testing.T) {
 				]
 			}
 		},
-		"V2": {
-			"Machines": [
-				{
-					"ApiHost": "http://new.example",
-					"ApiKey": "new",
-					"MachineID": 2
-				}
-			]
-		}
+		"Machines": [
+			{
+				"ApiHost": "http://new.example",
+				"ApiKey": "new",
+				"MachineID": 2
+			}
+		]
 	}`)
 	if err := json.Unmarshal(data, c); err != nil {
 		t.Fatalf("unmarshal config error: %v", err)

@@ -18,10 +18,11 @@ type Conf struct {
 
 func (p *Conf) UnmarshalJSON(data []byte) error {
 	raw := struct {
-		LogConfig   LogConfig      `json:"Log"`
-		CoresConfig []CoreConfig   `json:"Cores"`
-		NodeConfig  NodesConfig    `json:"Nodes"`
-		V2Config    *V2ConfigGroup `json:"V2"`
+		LogConfig   LogConfig          `json:"Log"`
+		CoresConfig []CoreConfig       `json:"Cores"`
+		NodeConfig  NodesConfig        `json:"Nodes"`
+		Machines    *[]V2MachineConfig `json:"Machines"`
+		V2Config    *V2ConfigGroup     `json:"V2"`
 	}{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -32,6 +33,9 @@ func (p *Conf) UnmarshalJSON(data []byte) error {
 	if raw.V2Config != nil {
 		p.NodeConfig.V2Nodes = raw.V2Config.Nodes
 		p.NodeConfig.Machines = raw.V2Config.Machines
+	}
+	if raw.Machines != nil {
+		p.NodeConfig.Machines = *raw.Machines
 	}
 	return nil
 }
