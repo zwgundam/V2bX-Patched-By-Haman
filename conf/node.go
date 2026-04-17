@@ -19,8 +19,9 @@ type NodeConfig struct {
 }
 
 type NodesConfig struct {
-	V1 []V1NodeConfig `json:"V1"`
-	V2 V2ConfigGroup  `json:"V2"`
+	V1       []V1NodeConfig    `json:"V1"`
+	V2Nodes  []V2NodeConfig    `json:"-"`
+	Machines []V2MachineConfig `json:"-"`
 }
 
 type V2ConfigGroup struct {
@@ -93,25 +94,30 @@ func (n *NodesConfig) UnmarshalJSON(data []byte) error {
 	legacy := make([]V1NodeConfig, 0)
 	if err := json.Unmarshal(data, &legacy); err == nil {
 		n.V1 = legacy
-		n.V2 = V2ConfigGroup{}
+		n.V2Nodes = nil
+		n.Machines = nil
 		return nil
 	}
-	type nodesConfig NodesConfig
-	grouped := nodesConfig{}
+	grouped := struct {
+		V1 []V1NodeConfig `json:"V1"`
+		V2 V2ConfigGroup  `json:"V2"`
+	}{}
 	if err := json.Unmarshal(data, &grouped); err != nil {
 		return err
 	}
-	*n = NodesConfig(grouped)
+	n.V1 = grouped.V1
+	n.V2Nodes = grouped.V2.Nodes
+	n.Machines = grouped.V2.Machines
 	return nil
 }
 
 func (n NodesConfig) RuntimeNodeConfigs() []NodeConfig {
-	configs := make([]NodeConfig, 0, len(n.V1)+len(n.V2.Nodes))
+	configs := make([]NodeConfig, 0, len(n.V1)+len(n.V2Nodes))
 	for i := range n.V1 {
 		configs = append(configs, n.V1[i].RuntimeNodeConfig())
 	}
-	for i := range n.V2.Nodes {
-		configs = append(configs, n.V2.Nodes[i].RuntimeNodeConfig())
+	for i := range n.V2Nodes {
+		configs = append(configs, n.V2Nodes[i].RuntimeNodeConfig())
 	}
 	return configs
 }

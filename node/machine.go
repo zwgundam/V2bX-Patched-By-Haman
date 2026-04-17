@@ -17,6 +17,8 @@ type Machine struct {
 	apiClient   *panel.Client
 	controllers map[int]*Controller
 	pullTask    *task.Task
+	statusTask  *task.Task
+	statusFunc  func() (*panel.MachineStatus, error)
 	access      sync.Mutex
 }
 
@@ -26,11 +28,19 @@ func NewMachine(server vCore.Core, config *conf.V2MachineConfig) (*Machine, erro
 	if err != nil {
 		return nil, err
 	}
+	statusFunc, err := newMachineStatusFunc()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"machine_id": config.ApiConfig.MachineID,
+			"err":        err,
+		}).Error("Init machine status reporter failed")
+	}
 	return &Machine{
 		server:      server,
 		config:      config,
 		apiClient:   client,
 		controllers: make(map[int]*Controller),
+		statusFunc:  statusFunc,
 	}, nil
 }
 
@@ -55,6 +65,10 @@ func (m *Machine) Close() {
 	if m.pullTask != nil {
 		m.pullTask.Close()
 		m.pullTask = nil
+	}
+	if m.statusTask != nil {
+		m.statusTask.Close()
+		m.statusTask = nil
 	}
 	for id, controller := range m.controllers {
 		if err := controller.Close(); err != nil {
@@ -101,7 +115,49 @@ func (m *Machine) updateTasks(resp *panel.MachineNodesResponse) {
 			m.pullTask.Close()
 			_ = m.pullTask.Start(false)
 		}
+	} else if m.pullTask != nil {
+		m.pullTask.Close()
+		m.pullTask = nil
 	}
+	pushInterval := resp.PushInterval()
+	if pushInterval > 0 && m.statusFunc != nil {
+		if m.statusTask == nil {
+			m.statusTask = &task.Task{
+				Interval: pushInterval,
+				Execute:  m.reportStatusTask,
+			}
+			log.WithField("machine_id", m.config.ApiConfig.MachineID).Info("Start machine status report")
+			_ = m.statusTask.Start(false)
+		} else if m.statusTask.Interval != pushInterval {
+			m.statusTask.Interval = pushInterval
+			m.statusTask.Close()
+			_ = m.statusTask.Start(false)
+		}
+	} else if m.statusTask != nil {
+		m.statusTask.Close()
+		m.statusTask = nil
+	}
+}
+
+func (m *Machine) reportStatusTask() error {
+	if m.statusFunc == nil {
+		return nil
+	}
+	status, err := m.statusFunc()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"machine_id": m.config.ApiConfig.MachineID,
+			"err":        err,
+		}).Error("Get machine status failed")
+		return nil
+	}
+	if err = m.apiClient.ReportMachineStatus(status); err != nil {
+		log.WithFields(log.Fields{
+			"machine_id": m.config.ApiConfig.MachineID,
+			"err":        err,
+		}).Error("Report machine status failed")
+	}
+	return nil
 }
 
 func (m *Machine) syncNodes(nodes []panel.MachineNode, strict bool) error {

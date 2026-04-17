@@ -19,8 +19,8 @@ func TestNodesConfigSupportsLegacyArray(t *testing.T) {
 	if len(nodes.V1) != 1 {
 		t.Fatalf("unexpected v1 node count: %d", len(nodes.V1))
 	}
-	if len(nodes.V2.Nodes) != 0 || len(nodes.V2.Machines) != 0 {
-		t.Fatalf("unexpected v2 config: %+v", nodes.V2)
+	if len(nodes.V2Nodes) != 0 || len(nodes.Machines) != 0 {
+		t.Fatalf("unexpected v2 config: %+v %+v", nodes.V2Nodes, nodes.Machines)
 	}
 	runtimeNodes := nodes.RuntimeNodeConfigs()
 	if len(runtimeNodes) != 1 {
@@ -66,11 +66,11 @@ func TestNodesConfigSupportsGroupedConfig(t *testing.T) {
 	if len(nodes.V1) != 1 {
 		t.Fatalf("unexpected v1 node count: %d", len(nodes.V1))
 	}
-	if len(nodes.V2.Nodes) != 1 {
-		t.Fatalf("unexpected v2 node count: %d", len(nodes.V2.Nodes))
+	if len(nodes.V2Nodes) != 1 {
+		t.Fatalf("unexpected v2 node count: %d", len(nodes.V2Nodes))
 	}
-	if len(nodes.V2.Machines) != 1 {
-		t.Fatalf("unexpected machine count: %d", len(nodes.V2.Machines))
+	if len(nodes.Machines) != 1 {
+		t.Fatalf("unexpected machine count: %d", len(nodes.Machines))
 	}
 	runtimeNodes := nodes.RuntimeNodeConfigs()
 	if len(runtimeNodes) != 2 {

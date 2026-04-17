@@ -38,9 +38,9 @@ func (n *Node) Start(nodes conf.NodesConfig, core vCore.Core) error {
 				err)
 		}
 	}
-	n.machines = make([]*Machine, len(nodes.V2.Machines))
-	for i := range nodes.V2.Machines {
-		machine, err := NewMachine(core, &nodes.V2.Machines[i])
+	n.machines = make([]*Machine, len(nodes.Machines))
+	for i := range nodes.Machines {
+		machine, err := NewMachine(core, &nodes.Machines[i])
 		if err != nil {
 			n.Close()
 			return err
@@ -49,8 +49,8 @@ func (n *Node) Start(nodes conf.NodesConfig, core vCore.Core) error {
 		if err != nil {
 			n.Close()
 			return fmt.Errorf("start machine controller [%s-%d] error: %s",
-				nodes.V2.Machines[i].ApiConfig.APIHost,
-				nodes.V2.Machines[i].ApiConfig.MachineID,
+				nodes.Machines[i].ApiConfig.APIHost,
+				nodes.Machines[i].ApiConfig.MachineID,
 				err)
 		}
 		n.machines[i] = machine
