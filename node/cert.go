@@ -35,7 +35,7 @@ func (c *Controller) renewCertTask() error {
 
 func (c *Controller) requestCert() error {
 	if c.CertConfig == nil {
-		return fmt.Errorf("tls node requires cert config")
+		c.CertConfig = &conf.CertConfig{}
 	}
 	if len(c.CertConfig.Certificate) > 0 || len(c.CertConfig.Key) > 0 {
 		if len(c.CertConfig.Certificate) == 0 || len(c.CertConfig.Key) == 0 {
@@ -43,9 +43,47 @@ func (c *Controller) requestCert() error {
 		}
 		return nil
 	}
+	if c.CertConfig.CertDomain == "" && c.info != nil {
+		switch c.info.Type {
+		case "vmess", "vless":
+			if c.info.VAllss != nil {
+				c.CertConfig.CertDomain = c.info.VAllss.TlsSettings.ServerName
+			}
+		case "trojan":
+			if c.info.Trojan != nil {
+				c.CertConfig.CertDomain = c.info.Trojan.TlsSettings.ServerName
+			}
+		case "naive":
+			if c.info.Naive != nil {
+				c.CertConfig.CertDomain = c.info.Naive.TlsSettings.ServerName
+			}
+		case "tuic":
+			if c.info.Tuic != nil {
+				c.CertConfig.CertDomain = c.info.Tuic.TlsSettings.ServerName
+			}
+		case "anytls":
+			if c.info.AnyTls != nil {
+				c.CertConfig.CertDomain = c.info.AnyTls.TlsSettings.ServerName
+			}
+		case "hysteria":
+			if c.info.Hysteria != nil {
+				c.CertConfig.CertDomain = c.info.Hysteria.TlsSettings.ServerName
+			}
+		case "hysteria2":
+			if c.info.Hysteria2 != nil {
+				c.CertConfig.CertDomain = c.info.Hysteria2.TlsSettings.ServerName
+			}
+		}
+		if c.CertConfig.CertDomain == "" && c.info.Common != nil {
+			c.CertConfig.CertDomain = c.info.Common.ServerName
+		}
+	}
+	if c.CertConfig.CertMode == "" {
+		c.CertConfig.CertMode = "self"
+	}
 	c.ensureMachineCertPaths()
 	c.normalizeCertPaths()
-	if c.CertConfig.CertMode == "" || c.CertConfig.CertMode == "none" {
+	if c.CertConfig.CertMode == "none" {
 		if c.CertConfig.CertFile != "" && c.CertConfig.KeyFile != "" {
 			return nil
 		}
@@ -165,22 +203,24 @@ func generateSelfSslCertificate(domain, certPath, keyPath string) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(certPath, os.O_CREATE|os.O_RDWR, 0644)
+	certFile, err := os.OpenFile(certPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	err = pem.Encode(f, &pem.Block{
+	defer certFile.Close()
+	err = pem.Encode(certFile, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: cert,
 	})
 	if err != nil {
 		return err
 	}
-	f, err = os.OpenFile(keyPath, os.O_CREATE|os.O_RDWR, 0644)
+	keyFile, err := os.OpenFile(keyPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	err = pem.Encode(f, &pem.Block{
+	defer keyFile.Close()
+	err = pem.Encode(keyFile, &pem.Block{
 		Type:  "EC PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	})

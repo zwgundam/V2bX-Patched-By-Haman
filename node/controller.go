@@ -76,9 +76,10 @@ func (c *Controller) Start() error {
 		if node.Common != nil && node.Common.CertConfig != nil {
 			c.CertConfig = node.Common.CertConfig
 		} else {
-			c.CertConfig = conf.NewCertConfig()
+			c.CertConfig = &conf.CertConfig{}
 		}
 	}
+	c.info = node
 	if node.Security == panel.Tls {
 		err = c.requestCert()
 		if err != nil {
@@ -99,7 +100,6 @@ func (c *Controller) Start() error {
 		return fmt.Errorf("add users error: %s", err)
 	}
 	log.WithField("tag", c.tag).Infof("Added %d new users", added)
-	c.info = node
 	c.startTasks(node)
 	return nil
 }

@@ -28,6 +28,7 @@ func (c *CertConfig) UnmarshalJSON(data []byte) error {
 		Mode                 string            `json:"mode"`
 		RejectUnknownSniBack *bool             `json:"reject_unknown_sni"`
 		CertDomainBack       string            `json:"cert_domain"`
+		DomainBack           string            `json:"domain"`
 		CertFileBack         string            `json:"cert_file"`
 		KeyFileBack          string            `json:"key_file"`
 		CertificatePath      string            `json:"certificate_path"`
@@ -63,6 +64,9 @@ func (c *CertConfig) UnmarshalJSON(data []byte) error {
 	}
 	if c.CertDomain == "" {
 		c.CertDomain = raw.CertDomainBack
+	}
+	if c.CertDomain == "" {
+		c.CertDomain = raw.DomainBack
 	}
 	if c.CertFile == "" {
 		c.CertFile = raw.CertFileBack

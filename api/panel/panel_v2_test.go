@@ -227,6 +227,56 @@ func TestClientGetNodeInfoDoesNotBackfillV2CertDomainFromTLSSettings(t *testing.
 	}
 }
 
+func TestClientGetNodeInfoUsesV2CertConfigDomain(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/server/config" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{
+			"protocol":"anytls",
+			"server_port":443,
+			"tls_settings":{
+				"server_name":"ignored.example.com"
+			},
+			"cert_config":{
+				"cert_mode":"http",
+				"domain":"node.example.com",
+				"email":"admin@example.com",
+				"http_port":"80"
+			},
+			"base_config":{"push_interval":60,"pull_interval":60}
+		}`)
+	}))
+	defer server.Close()
+
+	client, err := New(&conf.ApiConfig{
+		APIHost:    server.URL,
+		Key:        "token",
+		NodeID:     1,
+		NodeType:   "v2node",
+		APIVersion: "v2",
+	})
+	if err != nil {
+		t.Fatalf("new client error: %v", err)
+	}
+
+	node, err := client.GetNodeInfo()
+	if err != nil {
+		t.Fatalf("get node info error: %v", err)
+	}
+	if node == nil || node.Common == nil || node.Common.CertConfig == nil {
+		t.Fatal("expected cert config")
+	}
+	if node.Common.CertConfig.CertDomain != "node.example.com" {
+		t.Fatalf("unexpected cert domain: %s", node.Common.CertConfig.CertDomain)
+	}
+	if node.Common.CertConfig.ChallengePort != "80" {
+		t.Fatalf("unexpected challenge port: %s", node.Common.CertConfig.ChallengePort)
+	}
+}
+
 func TestClientReportUserTrafficUsesV2Report(t *testing.T) {
 	var body struct {
 		Traffic map[string][]int64 `json:"traffic"`

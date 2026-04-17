@@ -123,7 +123,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			if newN.Common != nil && newN.Common.CertConfig != nil {
 				c.CertConfig = newN.Common.CertConfig
 			} else {
-				c.CertConfig = conf.NewCertConfig()
+				c.CertConfig = &conf.CertConfig{}
 			}
 		}
 

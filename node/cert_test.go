@@ -1,6 +1,7 @@
 package node
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -101,5 +102,67 @@ func TestRequestCertRejectsMissingCertDomainForACME(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "cert domain") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRequestCertDefaultsToSelfSignedFromTLSServerName(t *testing.T) {
+	dir := t.TempDir()
+	controller := &Controller{
+		info: &panel.NodeInfo{
+			Type: "anytls",
+			AnyTls: &panel.AnyTlsNode{
+				TlsSettings: panel.TlsSettings{
+					ServerName: "node.example.com",
+				},
+			},
+		},
+		Options: &conf.Options{
+			CertConfig: &conf.CertConfig{
+				CertFile: filepath.Join(dir, "node.pem"),
+				KeyFile:  filepath.Join(dir, "node.key"),
+			},
+		},
+	}
+	if err := controller.requestCert(); err != nil {
+		t.Fatalf("request cert error: %v", err)
+	}
+	if controller.CertConfig.CertMode != "self" {
+		t.Fatalf("unexpected cert mode: %s", controller.CertConfig.CertMode)
+	}
+	if controller.CertConfig.CertDomain != "node.example.com" {
+		t.Fatalf("unexpected cert domain: %s", controller.CertConfig.CertDomain)
+	}
+	if _, err := os.Stat(controller.CertConfig.CertFile); err != nil {
+		t.Fatalf("stat cert file error: %v", err)
+	}
+	if _, err := os.Stat(controller.CertConfig.KeyFile); err != nil {
+		t.Fatalf("stat key file error: %v", err)
+	}
+}
+
+func TestRequestCertFallsBackToCommonServerName(t *testing.T) {
+	dir := t.TempDir()
+	controller := &Controller{
+		info: &panel.NodeInfo{
+			Type: "hysteria",
+			Common: &panel.CommonNode{
+				ServerName: "sni.example.com",
+			},
+		},
+		Options: &conf.Options{
+			CertConfig: &conf.CertConfig{
+				CertFile: filepath.Join(dir, "node.pem"),
+				KeyFile:  filepath.Join(dir, "node.key"),
+			},
+		},
+	}
+	if err := controller.requestCert(); err != nil {
+		t.Fatalf("request cert error: %v", err)
+	}
+	if controller.CertConfig.CertMode != "self" {
+		t.Fatalf("unexpected cert mode: %s", controller.CertConfig.CertMode)
+	}
+	if controller.CertConfig.CertDomain != "sni.example.com" {
+		t.Fatalf("unexpected cert domain: %s", controller.CertConfig.CertDomain)
 	}
 }

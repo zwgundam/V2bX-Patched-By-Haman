@@ -56,6 +56,24 @@ func TestCertConfigSupportsChallengeAddressAndPortAliases(t *testing.T) {
 	}
 }
 
+func TestCertConfigSupportsDomainAliasInsideCertConfig(t *testing.T) {
+	var cfg CertConfig
+	err := cfg.UnmarshalJSON([]byte(`{
+		"cert_mode":"http",
+		"domain":"node.example.com",
+		"email":"admin@example.com"
+	}`))
+	if err != nil {
+		t.Fatalf("unmarshal cert config error: %v", err)
+	}
+	if cfg.CertDomain != "node.example.com" {
+		t.Fatalf("unexpected cert domain: %s", cfg.CertDomain)
+	}
+	if cfg.Email != "admin@example.com" {
+		t.Fatalf("unexpected email: %s", cfg.Email)
+	}
+}
+
 func TestCertConfigDoesNotUseServerNameAsCertDomain(t *testing.T) {
 	var cfg CertConfig
 	err := cfg.UnmarshalJSON([]byte(`{
