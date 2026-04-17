@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"encoding/json"
+
+	"github.com/MoeclubM/V2bX/conf"
 )
 
 // Security type
@@ -40,6 +42,8 @@ type NodeInfo struct {
 }
 
 type CommonNode struct {
+	Protocol   string      `json:"protocol"`
+	ListenIP   string      `json:"listen_ip"`
 	Host       string      `json:"host"`
 	ServerPort int         `json:"server_port"`
 	ServerName string      `json:"server_name"`
@@ -61,15 +65,16 @@ type BaseConfig struct {
 // VAllssNode is vmess and vless node info
 type VAllssNode struct {
 	CommonNode
-	Tls                 int             `json:"tls"`
-	TlsSettings         TlsSettings     `json:"tls_settings"`
-	TlsSettingsBack     *TlsSettings    `json:"tlsSettings"`
-	Network             string          `json:"network"`
-	NetworkSettings     json.RawMessage `json:"network_settings"`
-	NetworkSettingsBack json.RawMessage `json:"networkSettings"`
-	Encryption          string          `json:"encryption"`
-	EncryptionSettings  EncSettings     `json:"encryption_settings"`
-	ServerName          string          `json:"server_name"`
+	Tls                 int                   `json:"tls"`
+	TlsSettings         TlsSettings           `json:"tls_settings"`
+	TlsSettingsBack     *TlsSettings          `json:"tlsSettings"`
+	Network             string                `json:"network"`
+	NetworkSettings     json.RawMessage       `json:"network_settings"`
+	NetworkSettingsBack json.RawMessage       `json:"networkSettings"`
+	Encryption          string                `json:"encryption"`
+	EncryptionSettings  EncSettings           `json:"encryption_settings"`
+	ServerName          string                `json:"server_name"`
+	Multiplex           *conf.MultiplexConfig `json:"multiplex"`
 
 	// vless only
 	Flow          string        `json:"flow"`
@@ -108,8 +113,9 @@ type ShadowsocksNode struct {
 
 type TrojanNode struct {
 	CommonNode
-	Network         string          `json:"network"`
-	NetworkSettings json.RawMessage `json:"networkSettings"`
+	Network         string                `json:"network"`
+	NetworkSettings json.RawMessage       `json:"networkSettings"`
+	Multiplex       *conf.MultiplexConfig `json:"multiplex"`
 }
 
 type TuicNode struct {
@@ -120,7 +126,7 @@ type TuicNode struct {
 
 type AnyTlsNode struct {
 	CommonNode
-	PaddingScheme []string `json:"padding_scheme,omitempty"`
+	PaddingScheme StringList `json:"padding_scheme,omitempty"`
 }
 
 type NaiveNode struct {
@@ -156,8 +162,70 @@ type Rules struct {
 	Protocol []string
 }
 
+type nodeResponseMeta struct {
+	Protocol string `json:"protocol"`
+	Version  int    `json:"version"`
+}
+
+type StringList []string
+
+func (s *StringList) UnmarshalJSON(data []byte) error {
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		if single == "" {
+			*s = nil
+			return nil
+		}
+		*s = []string{single}
+		return nil
+	}
+	var many []string
+	if err := json.Unmarshal(data, &many); err == nil {
+		*s = many
+		return nil
+	}
+	var raw []any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	values := make([]string, 0, len(raw))
+	for i := range raw {
+		item, ok := raw[i].(string)
+		if !ok {
+			return fmt.Errorf("item %d is not string", i)
+		}
+		values = append(values, item)
+	}
+	*s = values
+	return nil
+}
+
+func normalizeResponseNodeType(requestedType string, meta nodeResponseMeta) (string, error) {
+	nodeType := strings.ToLower(strings.TrimSpace(meta.Protocol))
+	if nodeType == "" {
+		nodeType = strings.ToLower(strings.TrimSpace(requestedType))
+	}
+	switch nodeType {
+	case "v2ray":
+		nodeType = "vmess"
+	case "hysteria":
+		if meta.Version == 2 {
+			nodeType = "hysteria2"
+		}
+	case "v2node":
+		nodeType = ""
+	}
+	if nodeType == "" {
+		return "", fmt.Errorf("missing node protocol in response")
+	}
+	return nodeType, nil
+}
+
 func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
-	const path = "/api/v1/server/UniProxy/config"
+	path, err := c.serverPath("config")
+	if err != nil {
+		return nil, err
+	}
 	r, err := c.client.
 		R().
 		SetHeader("If-None-Match", c.nodeEtag).
@@ -188,16 +256,23 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		return nil, fmt.Errorf("received nil response")
 	}
 	node = &NodeInfo{
-		Id:   c.NodeId,
-		Type: c.NodeType,
+		Id: c.NodeId,
 		RawDNS: RawDNS{
 			DNSMap:  make(map[string]map[string]interface{}),
 			DNSJson: []byte(""),
 		},
 	}
+	meta := nodeResponseMeta{}
+	if err = json.Unmarshal(r.Body(), &meta); err != nil {
+		return nil, fmt.Errorf("decode node metadata error: %s", err)
+	}
+	node.Type, err = normalizeResponseNodeType(c.NodeType, meta)
+	if err != nil {
+		return nil, err
+	}
 	// parse protocol params
 	var cm *CommonNode
-	switch c.NodeType {
+	switch node.Type {
 	case "vmess", "vless":
 		rsp := &VAllssNode{}
 		err = json.Unmarshal(r.Body(), rsp)
@@ -282,9 +357,15 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		cm = &rsp.CommonNode
 		node.Naive = rsp
 		node.Security = rsp.Tls
+	default:
+		return nil, fmt.Errorf("unsupported node type returned by panel: %s", node.Type)
 	}
 	if cm == nil {
 		return nil, fmt.Errorf("decode node params error: missing common config")
+	}
+	if c.NodeType != node.Type {
+		c.NodeType = node.Type
+		c.setQueryParams(node.Type)
 	}
 
 	// parse rules and dns

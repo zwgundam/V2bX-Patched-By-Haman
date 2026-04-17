@@ -17,30 +17,60 @@
       "OriginalPath": "/etc/V2bX/sing_origin.json"
     }
   ],
-  "Nodes": [
-    {
-      "ApiHost": "http://127.0.0.1",
-      "ApiKey": "test",
-      "NodeID": 33,
-      "NodeType": "shadowsocks",
-      "Timeout": 30,
-      "ListenIP": "0.0.0.0",
-      "SendIP": "0.0.0.0",
-      "DeviceOnlineMinTraffic": 200,
-      "ReportMinTraffic": 0,
-      "EnableTFO": false,
-      "EnableSniff": true,
-      "CertConfig": {
-        "CertMode": "self",
-        "RejectUnknownSni": false,
-        "CertDomain": "example.com",
-        "CertFile": "/etc/V2bX/fullchain.cer",
-        "KeyFile": "/etc/V2bX/cert.key",
-        "Provider": "cloudflare",
-        "DNSEnv": {
-          "EnvName": "env1"
+  "Nodes": {
+    "V1": [
+      {
+        "ApiHost": "http://127.0.0.1",
+        "ApiKey": "test",
+        "NodeID": 33,
+        "NodeType": "shadowsocks",
+        "Timeout": 30,
+        "ListenIP": "0.0.0.0",
+        "SendIP": "0.0.0.0",
+        "DeviceOnlineMinTraffic": 200,
+        "ReportMinTraffic": 0,
+        "EnableTFO": false,
+        "EnableSniff": true,
+        "CertConfig": {
+          "CertMode": "self",
+          "RejectUnknownSni": false,
+          "CertDomain": "example.com",
+          "CertFile": "/etc/V2bX/fullchain.cer",
+          "KeyFile": "/etc/V2bX/cert.key",
+          "Provider": "cloudflare",
+          "DNSEnv": {
+            "EnvName": "env1"
+          }
         }
       }
+    ],
+    "V2": {
+      "Nodes": [],
+      "Machines": [
+        {
+          "ApiHost": "http://127.0.0.1",
+          "ApiKey": "test",
+          "MachineID": 9,
+          "Timeout": 30,
+          "ListenIP": "0.0.0.0",
+          "SendIP": "0.0.0.0",
+          "DeviceOnlineMinTraffic": 200,
+          "ReportMinTraffic": 0,
+          "EnableTFO": false,
+          "EnableSniff": true,
+          "CertConfig": {
+            "CertMode": "self",
+            "RejectUnknownSni": false,
+            "CertDomain": "example.com",
+            "CertFile": "/etc/V2bX/fullchain.cer",
+            "KeyFile": "/etc/V2bX/cert.key",
+            "Provider": "cloudflare",
+            "DNSEnv": {
+              "EnvName": "env1"
+            }
+          }
+        }
+      ]
     }
-  ]
+  }
 }

@@ -66,15 +66,26 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 		ListenPort:  uint16(info.Common.ServerPort),
 		TCPFastOpen: c.SingOptions.TCPFastOpen,
 	}
+	multiplexConfig := c.SingOptions.Multiplex
+	switch info.Type {
+	case "vmess", "vless":
+		if info.VAllss != nil && info.VAllss.Multiplex != nil {
+			multiplexConfig = info.VAllss.Multiplex
+		}
+	case "trojan":
+		if info.Trojan != nil && info.Trojan.Multiplex != nil {
+			multiplexConfig = info.Trojan.Multiplex
+		}
+	}
 	var multiplex *option.InboundMultiplexOptions
-	if c.SingOptions.Multiplex != nil {
+	if multiplexConfig != nil {
 		multiplexOption := option.InboundMultiplexOptions{
-			Enabled: c.SingOptions.Multiplex.Enabled,
-			Padding: c.SingOptions.Multiplex.Padding,
+			Enabled: multiplexConfig.Enabled,
+			Padding: multiplexConfig.Padding,
 			Brutal: &option.BrutalOptions{
-				Enabled:  c.SingOptions.Multiplex.Brutal.Enabled,
-				UpMbps:   c.SingOptions.Multiplex.Brutal.UpMbps,
-				DownMbps: c.SingOptions.Multiplex.Brutal.DownMbps,
+				Enabled:  multiplexConfig.Brutal.Enabled,
+				UpMbps:   multiplexConfig.Brutal.UpMbps,
+				DownMbps: multiplexConfig.Brutal.DownMbps,
 			},
 		}
 		multiplex = &multiplexOption
@@ -400,7 +411,7 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 		in.Type = "anytls"
 		in.Options = &option.AnyTLSInboundOptions{
 			ListenOptions: listen,
-			PaddingScheme: info.AnyTls.PaddingScheme,
+			PaddingScheme: []string(info.AnyTls.PaddingScheme),
 			InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
 				TLS: &tls,
 			},

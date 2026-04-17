@@ -32,7 +32,10 @@ type AliveMap struct {
 
 // GetUserList will pull user from v2board
 func (c *Client) GetUserList() ([]UserInfo, error) {
-	const path = "/api/v1/server/UniProxy/user"
+	path, err := c.serverPath("user")
+	if err != nil {
+		return nil, err
+	}
 	r, err := c.client.R().
 		SetHeader("If-None-Match", c.userEtag).
 		SetHeader("X-Response-Format", "msgpack").
@@ -93,7 +96,10 @@ func (c *Client) GetUserList() ([]UserInfo, error) {
 // GetUserAlive will fetch the alive_ip count for users
 func (c *Client) GetUserAlive() (map[int]int, error) {
 	c.AliveMap = &AliveMap{}
-	const path = "/api/v1/server/UniProxy/alivelist"
+	path, err := c.serverPath("alivelist")
+	if err != nil {
+		return nil, err
+	}
 	r, err := c.client.R().
 		ForceContentType("application/json").
 		Get(path)
@@ -127,9 +133,19 @@ func (c *Client) ReportUserTraffic(userTraffic []UserTraffic) error {
 	for i := range userTraffic {
 		data[userTraffic[i].UID] = []int64{userTraffic[i].Upload, userTraffic[i].Download}
 	}
-	const path = "/api/v1/server/UniProxy/push"
+	path, err := c.serverPath("push")
+	if err != nil {
+		return err
+	}
+	body := any(data)
+	if c.useV2API {
+		path = c.serverPathPrefix + "/report"
+		body = map[string]any{
+			"traffic": data,
+		}
+	}
 	r, err := c.client.R().
-		SetBody(data).
+		SetBody(body).
 		ForceContentType("application/json").
 		Post(path)
 	err = c.checkResponse(r, path, err)
@@ -140,9 +156,19 @@ func (c *Client) ReportUserTraffic(userTraffic []UserTraffic) error {
 }
 
 func (c *Client) ReportNodeOnlineUsers(data *map[int][]string) error {
-	const path = "/api/v1/server/UniProxy/alive"
+	path, err := c.serverPath("alive")
+	if err != nil {
+		return err
+	}
+	body := any(data)
+	if c.useV2API {
+		path = c.serverPathPrefix + "/report"
+		body = map[string]any{
+			"alive": data,
+		}
+	}
 	r, err := c.client.R().
-		SetBody(data).
+		SetBody(body).
 		ForceContentType("application/json").
 		Post(path)
 	err = c.checkResponse(r, path, err)

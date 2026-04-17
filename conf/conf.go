@@ -13,7 +13,7 @@ import (
 type Conf struct {
 	LogConfig   LogConfig    `json:"Log"`
 	CoresConfig []CoreConfig `json:"Cores"`
-	NodeConfig  []NodeConfig `json:"Nodes"`
+	NodeConfig  NodesConfig  `json:"Nodes"`
 }
 
 func New() *Conf {
