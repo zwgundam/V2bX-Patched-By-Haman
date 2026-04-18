@@ -18,7 +18,7 @@ func TestMachineConfigUsesDefaultRuntimeOptions(t *testing.T) {
 	if cfg.ApiConfig.Timeout != 30 {
 		t.Fatalf("unexpected timeout: %d", cfg.ApiConfig.Timeout)
 	}
-	if cfg.Options.ListenIP != "0.0.0.0" {
+	if cfg.Options.ListenIP != "::" {
 		t.Fatalf("unexpected listen ip: %s", cfg.Options.ListenIP)
 	}
 	if cfg.Options.DeviceOnlineMinTraffic != 200 {

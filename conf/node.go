@@ -142,7 +142,7 @@ func validateMachineConfigData(data []byte) error {
 
 func defaultOptions() Options {
 	return Options{
-		ListenIP:               "0.0.0.0",
+		ListenIP:               "::",
 		SendIP:                 "0.0.0.0",
 		DeviceOnlineMinTraffic: 200,
 		ReportMinTraffic:       0,
