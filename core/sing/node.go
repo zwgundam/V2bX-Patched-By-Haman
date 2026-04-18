@@ -57,10 +57,7 @@ type H2NetworkConfig struct {
 }
 
 func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (option.Inbound, error) {
-	listenIP := c.ListenIP
-	if info.Common != nil && info.Common.ListenIP != "" {
-		listenIP = info.Common.ListenIP
-	}
+	listenIP := "::"
 	addr, err := netip.ParseAddr(listenIP)
 	if err != nil {
 		return option.Inbound{}, fmt.Errorf("the listen ip not vail")

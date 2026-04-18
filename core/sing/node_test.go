@@ -58,17 +58,17 @@ func TestGetInboundOptionsUsesInlineCertAndECH(t *testing.T) {
 	}
 }
 
-func TestGetInboundOptionsUsesPanelListenIP(t *testing.T) {
+func TestGetInboundOptionsUsesFixedDualStackListenIP(t *testing.T) {
 	inbound, err := getInboundOptions("test", &panel.NodeInfo{
 		Type:     "vmess",
 		Security: panel.None,
 		Common: &panel.CommonNode{
-			ListenIP:   "::",
+			ListenIP:   "0.0.0.0",
 			ServerPort: 443,
 		},
 		VAllss: &panel.VAllssNode{
 			CommonNode: panel.CommonNode{
-				ListenIP:   "::",
+				ListenIP:   "0.0.0.0",
 				ServerPort: 443,
 			},
 			Network: "ws",
