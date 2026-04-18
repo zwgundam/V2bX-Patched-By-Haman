@@ -5,37 +5,39 @@ import (
 	"io"
 	"os"
 
+	stdjson "encoding/json"
+
 	"github.com/MoeclubM/V2bX/common/json5"
 
 	"encoding/json/v2"
 )
 
 type Conf struct {
-	LogConfig   LogConfig    `json:"Log"`
-	CoresConfig []CoreConfig `json:"Cores"`
-	NodeConfig  NodesConfig  `json:"Nodes"`
+	LogConfig   LogConfig       `json:"Log"`
+	CoresConfig []CoreConfig    `json:"Cores"`
+	Machines    []MachineConfig `json:"Machines"`
 }
 
 func (p *Conf) UnmarshalJSON(data []byte) error {
 	raw := struct {
 		LogConfig   LogConfig          `json:"Log"`
 		CoresConfig []CoreConfig       `json:"Cores"`
-		NodeConfig  NodesConfig        `json:"Nodes"`
-		Machines    *[]V2MachineConfig `json:"Machines"`
-		V2Config    *V2ConfigGroup     `json:"V2"`
+		Machines    []MachineConfig    `json:"Machines"`
+		Nodes       stdjson.RawMessage `json:"Nodes"`
+		V2Config    stdjson.RawMessage `json:"V2"`
 	}{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
+	if len(raw.Nodes) > 0 && string(raw.Nodes) != "null" {
+		return fmt.Errorf("legacy Nodes field is no longer supported, use top-level Machines")
+	}
+	if len(raw.V2Config) > 0 && string(raw.V2Config) != "null" {
+		return fmt.Errorf("legacy grouped config is no longer supported, use top-level Machines")
+	}
 	p.LogConfig = raw.LogConfig
 	p.CoresConfig = raw.CoresConfig
-	p.NodeConfig = raw.NodeConfig
-	if raw.V2Config != nil {
-		p.NodeConfig.Machines = raw.V2Config.Machines
-	}
-	if raw.Machines != nil {
-		p.NodeConfig.Machines = *raw.Machines
-	}
+	p.Machines = raw.Machines
 	return nil
 }
 

@@ -72,12 +72,10 @@ func (c *Controller) Start() error {
 		return fmt.Errorf("update rule error: %s", err)
 	}
 	c.limiter = l
-	if node.APIVersion == panel.APIVersionV2 {
-		if node.Common != nil && node.Common.CertConfig != nil {
-			c.CertConfig = node.Common.CertConfig
-		} else {
-			c.CertConfig = &conf.CertConfig{}
-		}
+	if node.Common != nil && node.Common.CertConfig != nil {
+		c.CertConfig = node.Common.CertConfig
+	} else {
+		c.CertConfig = &conf.CertConfig{}
 	}
 	c.info = node
 	if node.Security == panel.Tls {

@@ -104,8 +104,8 @@ func TestMachineSyncNodes(t *testing.T) {
 		tags: make(map[string]struct{}),
 	}
 	limiter.Init()
-	machine, err := NewMachine(core, &conf.V2MachineConfig{
-		ApiConfig: conf.V2MachineApiConfig{
+	machine, err := NewMachine(core, &conf.MachineConfig{
+		ApiConfig: conf.ApiConfig{
 			APIHost:   server.URL,
 			MachineID: 9,
 			Key:       "token",
@@ -183,8 +183,8 @@ func TestMachineReportStatus(t *testing.T) {
 		tags: make(map[string]struct{}),
 	}
 	limiter.Init()
-	machine, err := NewMachine(core, &conf.V2MachineConfig{
-		ApiConfig: conf.V2MachineApiConfig{
+	machine, err := NewMachine(core, &conf.MachineConfig{
+		ApiConfig: conf.ApiConfig{
 			APIHost:   server.URL,
 			MachineID: 9,
 			Key:       "token",

@@ -39,7 +39,7 @@ func TestRequestCertAcceptsInlineCertificate(t *testing.T) {
 	}
 }
 
-func TestEnsureMachineCertPathsFillsMissingPathsForV2ACME(t *testing.T) {
+func TestEnsureMachineCertPathsFillsMissingPathsForMachineACME(t *testing.T) {
 	controller := &Controller{
 		apiClient: &panel.Client{
 			MachineID: 1,

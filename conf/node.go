@@ -13,28 +13,9 @@ import (
 	"github.com/MoeclubM/V2bX/common/json5"
 )
 
-type NodeConfig struct {
+type MachineConfig struct {
 	ApiConfig ApiConfig `json:"-"`
 	Options   Options   `json:"-"`
-}
-
-type NodesConfig struct {
-	V1       []V1NodeConfig    `json:"V1"`
-	Machines []V2MachineConfig `json:"-"`
-}
-
-type V2ConfigGroup struct {
-	Machines []V2MachineConfig `json:"Machines"`
-}
-
-type V1NodeConfig struct {
-	ApiConfig V1ApiConfig `json:"-"`
-	Options   Options     `json:"-"`
-}
-
-type V2MachineConfig struct {
-	ApiConfig V2MachineApiConfig `json:"-"`
-	Options   Options            `json:"-"`
 }
 
 type rawNodeConfig struct {
@@ -52,104 +33,28 @@ type ApiConfig struct {
 	NodeType     string `json:"NodeType"`
 	Timeout      int    `json:"Timeout"`
 	RuleListPath string `json:"RuleListPath"`
-	APIVersion   string `json:"-"`
 }
 
-type V1ApiConfig struct {
-	APIHost      string `json:"ApiHost"`
-	APISendIP    string `json:"ApiSendIP"`
-	NodeID       int    `json:"NodeID"`
-	Key          string `json:"ApiKey"`
-	NodeType     string `json:"NodeType"`
-	Timeout      int    `json:"Timeout"`
-	RuleListPath string `json:"RuleListPath"`
-}
-
-type V2MachineApiConfig struct {
-	APIHost      string `json:"ApiHost"`
-	APISendIP    string `json:"ApiSendIP"`
-	MachineID    int    `json:"MachineID"`
-	Key          string `json:"ApiKey"`
-	Timeout      int    `json:"Timeout"`
-	RuleListPath string `json:"RuleListPath"`
-}
-
-func (n *NodesConfig) UnmarshalJSON(data []byte) error {
-	legacy := make([]V1NodeConfig, 0)
-	if err := json.Unmarshal(data, &legacy); err == nil {
-		n.V1 = legacy
-		n.Machines = nil
-		return nil
-	}
-	grouped := struct {
-		V1 []V1NodeConfig `json:"V1"`
-		V2 V2ConfigGroup  `json:"V2"`
-	}{}
-	if err := json.Unmarshal(data, &grouped); err != nil {
-		return err
-	}
-	n.V1 = grouped.V1
-	n.Machines = grouped.V2.Machines
-	return nil
-}
-
-func (n NodesConfig) RuntimeNodeConfigs() []NodeConfig {
-	configs := make([]NodeConfig, 0, len(n.V1))
-	for i := range n.V1 {
-		configs = append(configs, n.V1[i].RuntimeNodeConfig())
-	}
-	return configs
-}
-
-func (n *V1NodeConfig) UnmarshalJSON(data []byte) (err error) {
+func (n *MachineConfig) UnmarshalJSON(data []byte) (err error) {
 	data, raw, err := loadNodeConfigData(data)
 	if err != nil {
 		return err
 	}
-	n.ApiConfig = V1ApiConfig{
+	if err = validateMachineConfigData(data); err != nil {
+		return err
+	}
+	n.ApiConfig = ApiConfig{
 		APIHost: "http://127.0.0.1",
 		Timeout: 30,
 	}
 	if err = unmarshalNodeAPI(raw, data, &n.ApiConfig); err != nil {
 		return err
 	}
-	n.Options = defaultNodeOptions()
-	return unmarshalNodeOptions(raw, data, &n.Options)
-}
-
-func (n *V2MachineConfig) UnmarshalJSON(data []byte) (err error) {
-	data, raw, err := loadNodeConfigData(data)
-	if err != nil {
-		return err
-	}
-	n.ApiConfig = V2MachineApiConfig{
-		APIHost: "http://127.0.0.1",
-		Timeout: 30,
-	}
-	if err = unmarshalNodeAPI(raw, data, &n.ApiConfig); err != nil {
-		return err
-	}
-	n.Options = defaultNodeOptions()
+	n.Options = defaultOptions()
 	return nil
 }
 
-func (n V1NodeConfig) RuntimeNodeConfig() NodeConfig {
-	return NodeConfig{
-		ApiConfig: ApiConfig{
-			APIHost:      n.ApiConfig.APIHost,
-			APISendIP:    n.ApiConfig.APISendIP,
-			NodeID:       n.ApiConfig.NodeID,
-			Key:          n.ApiConfig.Key,
-			NodeType:     n.ApiConfig.NodeType,
-			Timeout:      n.ApiConfig.Timeout,
-			RuleListPath: n.ApiConfig.RuleListPath,
-			APIVersion:   "v1",
-		},
-		Options: n.Options,
-	}
-}
-
-func (n V2MachineConfig) RuntimeAPIConfig(nodeID int) ApiConfig {
+func (n MachineConfig) RuntimeAPIConfig(nodeID int) ApiConfig {
 	return ApiConfig{
 		APIHost:      n.ApiConfig.APIHost,
 		APISendIP:    n.ApiConfig.APISendIP,
@@ -159,7 +64,6 @@ func (n V2MachineConfig) RuntimeAPIConfig(nodeID int) ApiConfig {
 		NodeType:     "v2node",
 		Timeout:      n.ApiConfig.Timeout,
 		RuleListPath: n.ApiConfig.RuleListPath,
-		APIVersion:   "v2",
 	}
 }
 
@@ -208,7 +112,35 @@ func unmarshalNodeAPI(raw rawNodeConfig, data []byte, api any) error {
 	return json.Unmarshal(data, api)
 }
 
-func defaultNodeOptions() Options {
+func validateMachineConfigData(data []byte) error {
+	raw := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for key := range raw {
+		switch key {
+		case "Include", "ApiConfig", "ApiHost", "ApiSendIP", "MachineID", "ApiKey", "Timeout", "RuleListPath":
+		default:
+			return fmt.Errorf("unsupported machine config field: %s", key)
+		}
+	}
+	if apiRaw, ok := raw["ApiConfig"]; ok && len(apiRaw) > 0 && string(apiRaw) != "null" {
+		apiConfig := make(map[string]json.RawMessage)
+		if err := json.Unmarshal(apiRaw, &apiConfig); err != nil {
+			return err
+		}
+		for key := range apiConfig {
+			switch key {
+			case "ApiHost", "ApiSendIP", "MachineID", "ApiKey", "Timeout", "RuleListPath":
+			default:
+				return fmt.Errorf("unsupported machine api field: %s", key)
+			}
+		}
+	}
+	return nil
+}
+
+func defaultOptions() Options {
 	return Options{
 		ListenIP:               "0.0.0.0",
 		SendIP:                 "0.0.0.0",
@@ -217,13 +149,6 @@ func defaultNodeOptions() Options {
 		SingOptions:            NewSingOptions(),
 		CertConfig:             NewCertConfig(),
 	}
-}
-
-func unmarshalNodeOptions(raw rawNodeConfig, data []byte, options *Options) error {
-	if len(raw.OptRaw) > 0 {
-		return json.Unmarshal(raw.OptRaw, options)
-	}
-	return json.Unmarshal(data, options)
 }
 
 type Options struct {

@@ -62,6 +62,20 @@ GOEXPERIMENT=jsonv2 go build -v -o build_assets/V2bX -tags "sing with_quic with_
 构建时请使用 GO 1.25以上版本，生成文件会存放在 build_assets 目录下
 ## 配置文件及详细使用教程
 
+当前版本仅支持 Xboard 机器模式，本地配置只保留顶层 `Machines` 数组。每个机器最少需要配置 `ApiHost`、`ApiKey` 和 `MachineID`。
+
+```json
+{
+  "Machines": [
+    {
+      "ApiHost": "https://panel.example.com",
+      "ApiKey": "your-api-key",
+      "MachineID": 1
+    }
+  ]
+}
+```
+
 [详细使用教程](https://v2bx.v-50.me/)
 
 ## 免责声明

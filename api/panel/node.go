@@ -20,13 +20,7 @@ const (
 	Reality = 2
 )
 
-const (
-	APIVersionV1 = "v1"
-	APIVersionV2 = "v2"
-)
-
 type NodeInfo struct {
-	APIVersion   string
 	Id           int
 	Type         string
 	Security     int
@@ -247,14 +241,6 @@ func normalizeResponseNodeType(requestedType string, meta nodeResponseMeta) (str
 	return nodeType, nil
 }
 
-func normalizeConfiguredNodeType(nodeType string) (string, error) {
-	normalized, err := normalizeResponseNodeType(nodeType, nodeResponseMeta{})
-	if err != nil {
-		return "", fmt.Errorf("missing node protocol in config")
-	}
-	return normalized, nil
-}
-
 func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 	path, err := c.serverPath("config")
 	if err != nil {
@@ -289,11 +275,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 	if r == nil {
 		return nil, fmt.Errorf("received nil response")
 	}
-	if c.useV2API {
-		node, err = decodeV2NodeInfo(r.Body(), c.NodeId, c.NodeType)
-	} else {
-		node, err = decodeV1NodeInfo(r.Body(), c.NodeId, c.NodeType)
-	}
+	node, err = decodeNodeInfo(r.Body(), c.NodeId, c.NodeType)
 	if err != nil {
 		return nil, err
 	}
@@ -305,17 +287,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 	return node, nil
 }
 
-func decodeV1NodeInfo(body []byte, nodeID int, requestedType string) (*NodeInfo, error) {
-	nodeType, err := normalizeConfiguredNodeType(requestedType)
-	if err != nil {
-		return nil, err
-	}
-	node := newNodeInfo(nodeID, APIVersionV1)
-	node.Type = nodeType
-	return decodeNodeInfoBody(body, node)
-}
-
-func decodeV2NodeInfo(body []byte, nodeID int, requestedType string) (*NodeInfo, error) {
+func decodeNodeInfo(body []byte, nodeID int, requestedType string) (*NodeInfo, error) {
 	meta := nodeResponseMeta{}
 	if err := json.Unmarshal(body, &meta); err != nil {
 		return nil, fmt.Errorf("decode node metadata error: %s", err)
@@ -324,15 +296,14 @@ func decodeV2NodeInfo(body []byte, nodeID int, requestedType string) (*NodeInfo,
 	if err != nil {
 		return nil, err
 	}
-	node := newNodeInfo(nodeID, APIVersionV2)
+	node := newNodeInfo(nodeID)
 	node.Type = nodeType
 	return decodeNodeInfoBody(body, node)
 }
 
-func newNodeInfo(nodeID int, apiVersion string) *NodeInfo {
+func newNodeInfo(nodeID int) *NodeInfo {
 	return &NodeInfo{
-		APIVersion: apiVersion,
-		Id:         nodeID,
+		Id: nodeID,
 		RawDNS: RawDNS{
 			DNSMap:  make(map[string]map[string]interface{}),
 			DNSJson: []byte(""),

@@ -76,7 +76,7 @@ func serverHandle(_ *cobra.Command, _ []string) {
 	defer vc.Close()
 	log.Info("Core ", vc.Type(), " started")
 	nodes := node.New()
-	err = nodes.Start(c.NodeConfig, vc)
+	err = nodes.Start(c.Machines, vc)
 	if err != nil {
 		log.WithField("err", err).Error("Run nodes failed")
 		return
@@ -103,7 +103,7 @@ func serverHandle(_ *cobra.Command, _ []string) {
 				return
 			}
 			log.Info("Core ", vc.Type(), " restarted")
-			err = nodes.Start(c.NodeConfig, vc)
+			err = nodes.Start(c.Machines, vc)
 			if err != nil {
 				log.WithField("err", err).Error("Run nodes failed")
 				return

@@ -3,44 +3,22 @@ package node
 import (
 	"fmt"
 
-	"github.com/MoeclubM/V2bX/api/panel"
 	"github.com/MoeclubM/V2bX/conf"
 	vCore "github.com/MoeclubM/V2bX/core"
 )
 
 type Node struct {
-	controllers []*Controller
-	machines    []*Machine
+	machines []*Machine
 }
 
 func New() *Node {
 	return &Node{}
 }
 
-func (n *Node) Start(nodes conf.NodesConfig, core vCore.Core) error {
-	runtimeNodes := nodes.RuntimeNodeConfigs()
-	n.controllers = make([]*Controller, len(runtimeNodes))
-	for i := range runtimeNodes {
-		p, err := panel.New(&runtimeNodes[i].ApiConfig)
-		if err != nil {
-			n.Close()
-			return err
-		}
-		// Register controller service
-		n.controllers[i] = NewController(core, p, &runtimeNodes[i].Options)
-		err = n.controllers[i].Start()
-		if err != nil {
-			n.Close()
-			return fmt.Errorf("start node controller [%s-%s-%d] error: %s",
-				runtimeNodes[i].ApiConfig.APIHost,
-				runtimeNodes[i].ApiConfig.NodeType,
-				runtimeNodes[i].ApiConfig.NodeID,
-				err)
-		}
-	}
-	n.machines = make([]*Machine, len(nodes.Machines))
-	for i := range nodes.Machines {
-		machine, err := NewMachine(core, &nodes.Machines[i])
+func (n *Node) Start(machines []conf.MachineConfig, core vCore.Core) error {
+	n.machines = make([]*Machine, len(machines))
+	for i := range machines {
+		machine, err := NewMachine(core, &machines[i])
 		if err != nil {
 			n.Close()
 			return err
@@ -49,8 +27,8 @@ func (n *Node) Start(nodes conf.NodesConfig, core vCore.Core) error {
 		if err != nil {
 			n.Close()
 			return fmt.Errorf("start machine controller [%s-%d] error: %s",
-				nodes.Machines[i].ApiConfig.APIHost,
-				nodes.Machines[i].ApiConfig.MachineID,
+				machines[i].ApiConfig.APIHost,
+				machines[i].ApiConfig.MachineID,
 				err)
 		}
 		n.machines[i] = machine
@@ -66,14 +44,4 @@ func (n *Node) Close() {
 		m.Close()
 	}
 	n.machines = nil
-	for _, c := range n.controllers {
-		if c == nil {
-			continue
-		}
-		err := c.Close()
-		if err != nil {
-			panic(err)
-		}
-	}
-	n.controllers = nil
 }

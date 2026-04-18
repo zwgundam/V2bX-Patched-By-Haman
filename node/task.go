@@ -119,12 +119,10 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			}).Error("Update Rule failed")
 			return nil
 		}
-		if newN.APIVersion == panel.APIVersionV2 {
-			if newN.Common != nil && newN.Common.CertConfig != nil {
-				c.CertConfig = newN.Common.CertConfig
-			} else {
-				c.CertConfig = &conf.CertConfig{}
-			}
+		if newN.Common != nil && newN.Common.CertConfig != nil {
+			c.CertConfig = newN.Common.CertConfig
+		} else {
+			c.CertConfig = &conf.CertConfig{}
 		}
 
 		// check cert

@@ -24,8 +24,6 @@ type Client struct {
 	MachineID        int
 	NodeType         string
 	NodeId           int
-	useV2API         bool
-	serverPathPrefix string
 	nodeEtag         string
 	userEtag         string
 	responseBodyHash string
@@ -76,6 +74,9 @@ func New(c *conf.ApiConfig) (*Client, error) {
 	default:
 		return nil, fmt.Errorf("unsupported Node type: %s", c.NodeType)
 	}
+	if c.MachineID <= 0 {
+		return nil, fmt.Errorf("machine id is required")
+	}
 	cli := &Client{
 		client:    client,
 		Token:     c.Key,
@@ -87,41 +88,24 @@ func New(c *conf.ApiConfig) (*Client, error) {
 		UserList:  &UserListBody{},
 		AliveMap:  &AliveMap{},
 	}
-	apiVersion := strings.ToLower(strings.TrimSpace(c.APIVersion))
-	if apiVersion == "" {
-		if c.MachineID > 0 || nodeType == "v2node" {
-			apiVersion = "v2"
-		} else {
-			apiVersion = "v1"
-		}
-	}
-	switch apiVersion {
-	case "v1":
-		cli.serverPathPrefix = "/api/v1/server/UniProxy"
-	case "v2":
-		cli.useV2API = true
-		cli.serverPathPrefix = "/api/v2/server"
-	default:
-		return nil, fmt.Errorf("unsupported api version: %s", c.APIVersion)
-	}
 	cli.setQueryParams(nodeType)
 	return cli, nil
 }
 
 func (c *Client) setQueryParams(nodeType string) {
 	params := map[string]string{
-		"node_id": strconv.Itoa(c.NodeId),
-		"token":   c.Token,
+		"machine_id": strconv.Itoa(c.MachineID),
+		"token":      c.Token,
 	}
-	if nodeType != "" {
+	if c.NodeId > 0 {
+		params["node_id"] = strconv.Itoa(c.NodeId)
+	}
+	if c.NodeId > 0 && nodeType != "" {
 		params["node_type"] = nodeType
-	}
-	if c.MachineID > 0 {
-		params["machine_id"] = strconv.Itoa(c.MachineID)
 	}
 	c.client.SetQueryParams(params)
 }
 
 func (c *Client) serverPath(path string) (string, error) {
-	return c.serverPathPrefix + "/" + path, nil
+	return "/api/v2/server/" + path, nil
 }

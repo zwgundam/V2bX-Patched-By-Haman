@@ -11,10 +11,11 @@ var client *Client
 
 func init() {
 	c, err := New(&conf.ApiConfig{
-		APIHost:  "http://127.0.0.1",
-		Key:      "token",
-		NodeType: "V2ray",
-		NodeID:   1,
+		APIHost:   "http://127.0.0.1",
+		Key:       "token",
+		MachineID: 1,
+		NodeType:  "v2node",
+		NodeID:    1,
 	})
 	if err != nil {
 		log.Panic(err)

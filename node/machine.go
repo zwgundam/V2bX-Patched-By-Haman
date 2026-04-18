@@ -13,7 +13,7 @@ import (
 
 type Machine struct {
 	server      vCore.Core
-	config      *conf.V2MachineConfig
+	config      *conf.MachineConfig
 	apiClient   *panel.Client
 	controllers map[int]*Controller
 	pullTask    *task.Task
@@ -22,7 +22,7 @@ type Machine struct {
 	access      sync.Mutex
 }
 
-func NewMachine(server vCore.Core, config *conf.V2MachineConfig) (*Machine, error) {
+func NewMachine(server vCore.Core, config *conf.MachineConfig) (*Machine, error) {
 	apiConfig := config.RuntimeAPIConfig(0)
 	client, err := panel.New(&apiConfig)
 	if err != nil {
@@ -212,23 +212,21 @@ func (m *Machine) syncNodes(nodes []panel.MachineNode, strict bool) error {
 }
 
 func (m *Machine) newController(node panel.MachineNode) (*Controller, error) {
-	runtimeNode := conf.NodeConfig{
-		ApiConfig: m.config.RuntimeAPIConfig(node.Id),
-		Options:   m.config.Options,
+	apiConfig := m.config.RuntimeAPIConfig(node.Id)
+	options := m.config.Options
+	if options.Name != "" {
+		options.Name = fmt.Sprintf("%s-%d", options.Name, node.Id)
 	}
-	if runtimeNode.Options.Name != "" {
-		runtimeNode.Options.Name = fmt.Sprintf("%s-%d", runtimeNode.Options.Name, node.Id)
-	}
-	client, err := panel.New(&runtimeNode.ApiConfig)
+	client, err := panel.New(&apiConfig)
 	if err != nil {
 		return nil, err
 	}
-	controller := NewController(m.server, client, &runtimeNode.Options)
+	controller := NewController(m.server, client, &options)
 	if err = controller.Start(); err != nil {
 		return nil, fmt.Errorf("start node controller [%s-%d-%d] error: %s",
-			runtimeNode.ApiConfig.APIHost,
-			runtimeNode.ApiConfig.MachineID,
-			runtimeNode.ApiConfig.NodeID,
+			apiConfig.APIHost,
+			apiConfig.MachineID,
+			apiConfig.NodeID,
 			err)
 	}
 	return controller, nil

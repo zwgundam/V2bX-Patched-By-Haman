@@ -3,28 +3,26 @@ package conf
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"encoding/json/v2"
 )
 
-func TestConf_LoadFromPath(t *testing.T) {
+func TestConfLoadFromPath(t *testing.T) {
 	c := New()
-	t.Log(c.LoadFromPath("../example/config.json"), c.NodeConfig)
+	if err := c.LoadFromPath("../example/config.json"); err != nil {
+		t.Fatalf("load config error: %v", err)
+	}
+	if len(c.Machines) != 2 {
+		t.Fatalf("unexpected machine count: %d", len(c.Machines))
+	}
 }
 
-func TestConfSupportsTopLevelNodesAndMachines(t *testing.T) {
+func TestConfSupportsTopLevelMachines(t *testing.T) {
 	c := New()
 	data := []byte(`{
-		"Nodes": [
-			{
-				"ApiHost": "http://127.0.0.1",
-				"ApiKey": "test",
-				"NodeID": 1,
-				"NodeType": "vmess"
-			}
-		],
 		"Machines": [
 			{
 				"ApiHost": "http://127.0.0.1",
@@ -36,21 +34,17 @@ func TestConfSupportsTopLevelNodesAndMachines(t *testing.T) {
 	if err := json.Unmarshal(data, c); err != nil {
 		t.Fatalf("unmarshal config error: %v", err)
 	}
-	if len(c.NodeConfig.V1) != 1 {
-		t.Fatalf("unexpected v1 node count: %d", len(c.NodeConfig.V1))
+	if len(c.Machines) != 1 {
+		t.Fatalf("unexpected machine count: %d", len(c.Machines))
 	}
-	if len(c.NodeConfig.Machines) != 1 {
-		t.Fatalf("unexpected machine count: %d", len(c.NodeConfig.Machines))
-	}
-	if len(c.NodeConfig.RuntimeNodeConfigs()) != 1 {
-		t.Fatalf("unexpected runtime node count: %d", len(c.NodeConfig.RuntimeNodeConfigs()))
+	if c.Machines[0].ApiConfig.MachineID != 9 {
+		t.Fatalf("unexpected machine id: %d", c.Machines[0].ApiConfig.MachineID)
 	}
 }
 
 func TestConfSupportsMultipleTopLevelMachinesWithMinimalFields(t *testing.T) {
 	c := New()
 	data := []byte(`{
-		"Nodes": [],
 		"Machines": [
 			{
 				"ApiHost": "http://a.example",
@@ -67,49 +61,58 @@ func TestConfSupportsMultipleTopLevelMachinesWithMinimalFields(t *testing.T) {
 	if err := json.Unmarshal(data, c); err != nil {
 		t.Fatalf("unmarshal config error: %v", err)
 	}
-	if len(c.NodeConfig.Machines) != 2 {
-		t.Fatalf("unexpected machine count: %d", len(c.NodeConfig.Machines))
+	if len(c.Machines) != 2 {
+		t.Fatalf("unexpected machine count: %d", len(c.Machines))
 	}
-	if c.NodeConfig.Machines[1].ApiConfig.MachineID != 2 {
-		t.Fatalf("unexpected machine id: %d", c.NodeConfig.Machines[1].ApiConfig.MachineID)
+	if c.Machines[1].ApiConfig.MachineID != 2 {
+		t.Fatalf("unexpected machine id: %d", c.Machines[1].ApiConfig.MachineID)
 	}
 }
 
-func TestConfTopLevelMachinesOverrideLegacyNodesV2(t *testing.T) {
+func TestConfRejectsLegacyNodesConfig(t *testing.T) {
 	c := New()
 	data := []byte(`{
-		"Nodes": {
-			"V1": [],
-			"V2": {
-				"Machines": [
-					{
-						"ApiHost": "http://legacy.example",
-						"ApiKey": "legacy",
-						"MachineID": 1
-					}
-				]
-			}
-		},
-		"Machines": [
+		"Nodes": [
 			{
-				"ApiHost": "http://new.example",
-				"ApiKey": "new",
-				"MachineID": 2
+				"ApiHost": "http://127.0.0.1",
+				"ApiKey": "test",
+				"NodeID": 1,
+				"NodeType": "vmess"
 			}
 		]
 	}`)
-	if err := json.Unmarshal(data, c); err != nil {
-		t.Fatalf("unmarshal config error: %v", err)
+	err := json.Unmarshal(data, c)
+	if err == nil {
+		t.Fatal("expected legacy nodes config error")
 	}
-	if len(c.NodeConfig.Machines) != 1 {
-		t.Fatalf("unexpected machine count: %d", len(c.NodeConfig.Machines))
-	}
-	if c.NodeConfig.Machines[0].ApiConfig.MachineID != 2 {
-		t.Fatalf("unexpected machine id: %d", c.NodeConfig.Machines[0].ApiConfig.MachineID)
+	if !strings.Contains(err.Error(), "legacy Nodes field") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func TestConf_Watch(t *testing.T) {
+func TestConfRejectsLegacyV2Config(t *testing.T) {
+	c := New()
+	data := []byte(`{
+		"V2": {
+			"Machines": [
+				{
+					"ApiHost": "http://127.0.0.1",
+					"ApiKey": "test",
+					"MachineID": 1
+				}
+			]
+		}
+	}`)
+	err := json.Unmarshal(data, c)
+	if err == nil {
+		t.Fatal("expected legacy v2 config error")
+	}
+	if !strings.Contains(err.Error(), "legacy grouped config") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestConfWatch(t *testing.T) {
 	c := New()
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.json")

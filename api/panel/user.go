@@ -30,7 +30,7 @@ type AliveMap struct {
 	Alive map[int]int `json:"alive"`
 }
 
-// GetUserList will pull user from v2board
+// GetUserList will pull user from panel
 func (c *Client) GetUserList() ([]UserInfo, error) {
 	path, err := c.serverPath("user")
 	if err != nil {
@@ -133,16 +133,12 @@ func (c *Client) ReportUserTraffic(userTraffic []UserTraffic) error {
 	for i := range userTraffic {
 		data[userTraffic[i].UID] = []int64{userTraffic[i].Upload, userTraffic[i].Download}
 	}
-	path, err := c.serverPath("push")
+	path, err := c.serverPath("report")
 	if err != nil {
 		return err
 	}
-	body := any(data)
-	if c.useV2API {
-		path = c.serverPathPrefix + "/report"
-		body = map[string]any{
-			"traffic": data,
-		}
+	body := map[string]any{
+		"traffic": data,
 	}
 	r, err := c.client.R().
 		SetBody(body).
@@ -156,16 +152,12 @@ func (c *Client) ReportUserTraffic(userTraffic []UserTraffic) error {
 }
 
 func (c *Client) ReportNodeOnlineUsers(data *map[int][]string) error {
-	path, err := c.serverPath("alive")
+	path, err := c.serverPath("report")
 	if err != nil {
 		return err
 	}
-	body := any(data)
-	if c.useV2API {
-		path = c.serverPathPrefix + "/report"
-		body = map[string]any{
-			"alive": data,
-		}
+	body := map[string]any{
+		"alive": data,
 	}
 	r, err := c.client.R().
 		SetBody(body).

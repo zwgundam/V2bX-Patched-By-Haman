@@ -5,67 +5,37 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"sync/atomic"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/MoeclubM/V2bX/conf"
 )
 
-func TestClientGetNodeInfoUsesConfiguredV1Path(t *testing.T) {
-	var v1ConfigHits int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/server/UniProxy/config":
-			atomic.AddInt32(&v1ConfigHits, 1)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"server_port":443,"tls":1,"network":"ws","networkSettings":{"path":"/ws"},"base_config":{"push_interval":60,"pull_interval":60}}`)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-
-	client, err := New(&conf.ApiConfig{
-		APIHost:  server.URL,
+func TestClientNewRequiresMachineID(t *testing.T) {
+	_, err := New(&conf.ApiConfig{
+		APIHost:  "http://127.0.0.1",
 		Key:      "token",
 		NodeID:   1,
-		NodeType: "vmess",
+		NodeType: "v2node",
 	})
-	if err != nil {
-		t.Fatalf("new client error: %v", err)
+	if err == nil {
+		t.Fatal("expected machine id error")
 	}
-
-	node, err := client.GetNodeInfo()
-	if err != nil {
-		t.Fatalf("get node info error: %v", err)
-	}
-	if node == nil {
-		t.Fatal("expected node info")
-	}
-	if atomic.LoadInt32(&v1ConfigHits) != 1 {
-		t.Fatalf("expected v1 config request once, got %d", atomic.LoadInt32(&v1ConfigHits))
-	}
-	if client.useV2API {
-		t.Fatal("expected v1 fallback")
-	}
-	if client.serverPathPrefix != "/api/v1/server/UniProxy" {
-		t.Fatalf("unexpected server path prefix: %s", client.serverPathPrefix)
-	}
-	if node.Type != "vmess" {
-		t.Fatalf("unexpected node type: %s", node.Type)
-	}
-	if node.APIVersion != APIVersionV1 {
-		t.Fatalf("unexpected api version: %s", node.APIVersion)
+	if !strings.Contains(err.Error(), "machine id") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func TestClientGetNodeInfoUsesConfiguredV2PathAndNormalizesType(t *testing.T) {
+func TestClientGetNodeInfoUsesPanelPathAndNormalizesType(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v2/server/config":
 			if r.URL.Query().Get("machine_id") != "9" {
 				t.Fatalf("missing machine_id in config query: %s", r.URL.RawQuery)
+			}
+			if r.URL.Query().Get("node_id") != "3" {
+				t.Fatalf("missing node_id in config query: %s", r.URL.RawQuery)
 			}
 			if r.URL.Query().Get("node_type") != "v2node" {
 				t.Fatalf("unexpected node_type in config query: %s", r.URL.RawQuery)
@@ -96,24 +66,15 @@ func TestClientGetNodeInfoUsesConfiguredV2PathAndNormalizesType(t *testing.T) {
 	if node == nil {
 		t.Fatal("expected node info")
 	}
-	if !client.useV2API {
-		t.Fatal("expected v2 api mode")
-	}
-	if client.serverPathPrefix != "/api/v2/server" {
-		t.Fatalf("unexpected server path prefix: %s", client.serverPathPrefix)
-	}
 	if node.Type != "hysteria2" {
 		t.Fatalf("unexpected normalized node type: %s", node.Type)
 	}
 	if client.NodeType != "hysteria2" {
 		t.Fatalf("expected client node type to update, got %s", client.NodeType)
 	}
-	if node.APIVersion != APIVersionV2 {
-		t.Fatalf("unexpected api version: %s", node.APIVersion)
-	}
 }
 
-func TestClientGetNodeInfoParsesV2CertAndECH(t *testing.T) {
+func TestClientGetNodeInfoParsesCertAndECH(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/server/config" {
 			http.NotFound(w, r)
@@ -146,11 +107,11 @@ func TestClientGetNodeInfoParsesV2CertAndECH(t *testing.T) {
 	defer server.Close()
 
 	client, err := New(&conf.ApiConfig{
-		APIHost:    server.URL,
-		Key:        "token",
-		NodeID:     1,
-		NodeType:   "v2node",
-		APIVersion: "v2",
+		APIHost:   server.URL,
+		Key:       "token",
+		MachineID: 9,
+		NodeID:    1,
+		NodeType:  "v2node",
 	})
 	if err != nil {
 		t.Fatalf("new client error: %v", err)
@@ -181,7 +142,7 @@ func TestClientGetNodeInfoParsesV2CertAndECH(t *testing.T) {
 	}
 }
 
-func TestClientGetNodeInfoDoesNotBackfillV2CertDomainFromTLSSettings(t *testing.T) {
+func TestClientGetNodeInfoDoesNotBackfillCertDomainFromTLSSettings(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/server/config" {
 			http.NotFound(w, r)
@@ -205,11 +166,11 @@ func TestClientGetNodeInfoDoesNotBackfillV2CertDomainFromTLSSettings(t *testing.
 	defer server.Close()
 
 	client, err := New(&conf.ApiConfig{
-		APIHost:    server.URL,
-		Key:        "token",
-		NodeID:     1,
-		NodeType:   "v2node",
-		APIVersion: "v2",
+		APIHost:   server.URL,
+		Key:       "token",
+		MachineID: 9,
+		NodeID:    1,
+		NodeType:  "v2node",
 	})
 	if err != nil {
 		t.Fatalf("new client error: %v", err)
@@ -227,7 +188,7 @@ func TestClientGetNodeInfoDoesNotBackfillV2CertDomainFromTLSSettings(t *testing.
 	}
 }
 
-func TestClientGetNodeInfoUsesV2CertConfigDomain(t *testing.T) {
+func TestClientGetNodeInfoUsesCertConfigDomain(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/server/config" {
 			http.NotFound(w, r)
@@ -252,11 +213,11 @@ func TestClientGetNodeInfoUsesV2CertConfigDomain(t *testing.T) {
 	defer server.Close()
 
 	client, err := New(&conf.ApiConfig{
-		APIHost:    server.URL,
-		Key:        "token",
-		NodeID:     1,
-		NodeType:   "v2node",
-		APIVersion: "v2",
+		APIHost:   server.URL,
+		Key:       "token",
+		MachineID: 9,
+		NodeID:    1,
+		NodeType:  "v2node",
 	})
 	if err != nil {
 		t.Fatalf("new client error: %v", err)
@@ -277,7 +238,7 @@ func TestClientGetNodeInfoUsesV2CertConfigDomain(t *testing.T) {
 	}
 }
 
-func TestClientReportUserTrafficUsesV2Report(t *testing.T) {
+func TestClientReportUserTrafficUsesReportEndpoint(t *testing.T) {
 	var body struct {
 		Traffic map[string][]int64 `json:"traffic"`
 	}
@@ -296,10 +257,11 @@ func TestClientReportUserTrafficUsesV2Report(t *testing.T) {
 	defer server.Close()
 
 	client, err := New(&conf.ApiConfig{
-		APIHost:  server.URL,
-		Key:      "token",
-		NodeID:   1,
-		NodeType: "v2node",
+		APIHost:   server.URL,
+		Key:       "token",
+		MachineID: 9,
+		NodeID:    1,
+		NodeType:  "v2node",
 	})
 	if err != nil {
 		t.Fatalf("new client error: %v", err)
@@ -326,6 +288,9 @@ func TestClientGetMachineNodes(t *testing.T) {
 		case "/api/v2/server/machine/nodes":
 			if r.URL.Query().Get("machine_id") != "9" {
 				t.Fatalf("missing machine_id in machine query: %s", r.URL.RawQuery)
+			}
+			if r.URL.Query().Get("node_id") != "" {
+				t.Fatalf("unexpected node_id in machine query: %s", r.URL.RawQuery)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"nodes":[{"id":3,"type":"vmess","name":"node-3"}],"base_config":{"push_interval":30,"pull_interval":60}}`)

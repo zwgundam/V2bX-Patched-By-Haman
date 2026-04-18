@@ -11,9 +11,8 @@ import (
 
 func TestGetInboundOptionsUsesInlineCertAndECH(t *testing.T) {
 	inbound, err := getInboundOptions("test", &panel.NodeInfo{
-		APIVersion: panel.APIVersionV2,
-		Type:       "vmess",
-		Security:   panel.Tls,
+		Type:     "vmess",
+		Security: panel.Tls,
 		Common: &panel.CommonNode{
 			ServerPort: 443,
 		},
@@ -59,11 +58,10 @@ func TestGetInboundOptionsUsesInlineCertAndECH(t *testing.T) {
 	}
 }
 
-func TestGetInboundOptionsUsesV2PanelListenIP(t *testing.T) {
+func TestGetInboundOptionsUsesPanelListenIP(t *testing.T) {
 	inbound, err := getInboundOptions("test", &panel.NodeInfo{
-		APIVersion: panel.APIVersionV2,
-		Type:       "vmess",
-		Security:   panel.None,
+		Type:     "vmess",
+		Security: panel.None,
 		Common: &panel.CommonNode{
 			ListenIP:   "::",
 			ServerPort: 443,
