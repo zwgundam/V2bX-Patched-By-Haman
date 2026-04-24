@@ -342,4 +342,4 @@ require (
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )
 
-replace github.com/sagernet/sing-box => github.com/MoeclubM/sing-box_mod v1.14.0-v2bx.1
+replace github.com/sagernet/sing-box => github.com/MoeclubM/sing-box_mod v1.14.0-v2bx.2
