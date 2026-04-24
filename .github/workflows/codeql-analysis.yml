@@ -20,6 +20,9 @@ on:
   schedule:
     - cron: '43 22 * * 3'
 
+env:
+  GONOSUMDB: github.com/MoeclubM/sing-box_mod
+
 jobs:
   analyze:
     name: Analyze

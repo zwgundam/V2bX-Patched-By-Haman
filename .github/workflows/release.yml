@@ -13,6 +13,9 @@ on:
       - "go.sum"
       - ".github/workflows/release.yml"
 
+env:
+  GONOSUMDB: github.com/MoeclubM/sing-box_mod
+
 jobs:
 
   build:

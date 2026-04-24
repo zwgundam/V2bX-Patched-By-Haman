@@ -3,6 +3,7 @@ FROM golang:1.25.0-alpine AS builder
 WORKDIR /app
 COPY . .
 ENV CGO_ENABLED=0
+ENV GONOSUMDB=github.com/MoeclubM/sing-box_mod
 RUN GOEXPERIMENT=jsonv2 go mod download
 RUN GOEXPERIMENT=jsonv2 go build -v -o V2bX -tags "sing with_quic with_grpc with_utls with_wireguard with_acme with_gvisor"
 
