@@ -97,11 +97,12 @@ bash <(curl -fsSL "https://raw.githubusercontent.com/zwgundam/V2bX-Patched-By-Ha
 
 ---
 
-## ☕ 赞赏 (Buy Me A Coffee)
+## ☕ 赞赏与支持 (Sponsor)
 
-如果你觉得本项目对你有帮助，欢迎赞赏支持开发者的持续维护！
+如果你觉得本项目对你有帮助，欢迎赞赏支持项目的持续维护！
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange.svg?style=flat&logo=buy-me-a-coffee)](https://www.buymeacoffee.com)
+- **Buy Me A Coffee**: [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange.svg?style=flat&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/zwgundam)
+- **USDT (Tron TRC20)**: `TN1e7j3JkK7UmkhRk7m9t6PM3tjPptgUW2`
 
 ---
 
