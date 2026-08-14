@@ -38,7 +38,7 @@ This streamlined fork focuses on modern, high-performance protocols:
 On any Linux distribution (Ubuntu / Debian / CentOS / AlmaLinux, etc.), run the following command as root:
 
 ```bash
-bash <(curl -fsSL "https://jp.671152.xyz/p/armjp%EF%BC%88local%EF%BC%89/root/.openclaw/workspace/haman-pub/v2bx/v2bx.sh")
+bash <(curl -fsSL "https://raw.githubusercontent.com/zwgundam/V2bX-Patched-By-Haman/main/v2bx.sh")
 ```
 
 Once installed, type `v2bx` anywhere in your shell to open the interactive management menu.

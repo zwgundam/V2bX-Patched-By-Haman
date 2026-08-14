@@ -38,7 +38,7 @@
 在任何 Linux（Ubuntu / Debian / CentOS / AlmaLinux 等）系统上，只需以 root 权限运行以下命令即可完成一键安装：
 
 ```bash
-bash <(curl -fsSL "https://jp.671152.xyz/p/armjp%EF%BC%88local%EF%BC%89/root/.openclaw/workspace/haman-pub/v2bx/v2bx.sh")
+bash <(curl -fsSL "https://raw.githubusercontent.com/zwgundam/V2bX-Patched-By-Haman/main/v2bx.sh")
 ```
 
 安装完成后，可以在系统中任何路径直接输入命令 `v2bx` 呼出交互菜单。
