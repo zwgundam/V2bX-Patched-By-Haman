@@ -1,18 +1,20 @@
-# V2bX v1.0 Management Script & Automated Deployment Guide
+# V2bX-Patched-By-Haman v1.0
 
-This repository provides the customized, streamlined **V2bX v1.0** automated management script and compiled binaries built on the **Sing-Box 1.14+** core for lightweight Xboard backend integration.
+[English Document](README.en.md) | [中文文档](README.md)
+
+This repository provides the customized, streamlined **V2bX-Patched-By-Haman v1.0** automated management script and compiled source code built on the **Sing-Box 1.14+** core for lightweight **Xboard** backend Machine Mode integration.
 
 **V2bX** is a high-performance node backend designed for **Xboard** (modified from XrayR and powered by the Sing-Box core), supporting single-instance multi-node deployment via Machine Mode.
 
 ---
 
-## ⚡ Supported Panels & Node Protocols
+## ⚡ Supported Panels & Protocols
 
 ### 1. Panel Support
 - **Xboard** (Recommended, fully supports Machines mode)
 
-### 2. Supported Protocols in this Custom Build
-This streamlined fork focuses on modern, high-performance protocols:
+### 2. Supported Protocols
+This streamlined build focuses on modern, high-performance protocols:
 - **VLESS** (Supports Reality / XTLS / AnyTLS)
 - **Hysteria 2**
 - **AnyTLS**
@@ -33,7 +35,7 @@ This streamlined fork focuses on modern, high-performance protocols:
 
 ---
 
-## 🚀 Quick Start / One-Click Install
+## 🚀 One-Click Install & Quick Start
 
 On any Linux distribution (Ubuntu / Debian / CentOS / AlmaLinux, etc.), run the following command as root:
 
@@ -51,7 +53,7 @@ Typing `v2bx` launches the interactive CLI menu:
 
 ```text
 =================================================
- V2bX Management Script v1.0 (Sing-Box 1.14+ Custom)
+ V2bX-Patched-By-Haman v1.0 (Sing-Box 1.14+ Custom)
  Status: [ Running ] (Auto-start enabled)
 =================================================
   1. Install V2bX
@@ -81,7 +83,7 @@ Typing `v2bx` launches the interactive CLI menu:
 
 ---
 
-## 🌟 Key Features & Innovations in v1.0
+## 🌟 Key Features in v1.0
 
 1. **Port 80 Intelligent Borrowing & Auto-Recovery**
    - Automatically detects Port 80 occupancy during ACME HTTP-01 certificate challenges (supports Nginx, Caddy, Apache, Lighttpd, Docker containers, etc.).
@@ -95,15 +97,28 @@ Typing `v2bx` launches the interactive CLI menu:
    - Menu Option `2` updates the binary core, management script, and Sing-Box 1.14+ rule assets simultaneously.
    - Atomic replacement via `exec` prevents script pointer offset corruption during self-overwrites.
 
-4. **Robust Systemd Service Monitoring**
-   - Multi-path detection across service units and `pgrep` process lists for rock-solid health monitoring.
+---
+
+## ☕ Support / Buy Me A Coffee
+
+If you find this project helpful, feel free to support its continued maintenance!
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange.svg?style=flat&logo=buy-me-a-coffee)](https://www.buymeacoffee.com)
 
 ---
 
-## 📁 Shared Directory & Files
+## 🙏 Acknowledgements
 
-- `v2bx.sh` — V2bX v1.0 management script
-- `v2bx-linux-arm64` — Pre-built ARM64 binary (QUIC, gRPC, gVisor, WireGuard enabled)
-- `v2bx-linux-amd64` — Pre-built x86_64 binary (QUIC, gRPC, gVisor, WireGuard enabled)
-- `README.md` — Chinese documentation
-- `README.en.md` — English documentation
+Special thanks to the open-source projects and authors that made this project possible:
+
+- [wyx2685/V2bX](https://github.com/wyx2685/V2bX) & [MoeclubM/V2bX](https://github.com/MoeclubM/V2bX) - Original V2bX framework
+- [SagerNet/sing-box](https://github.com/SagerNet/sing-box) - Powerful proxy core
+- [XrayR-project/XrayR](https://github.com/XrayR-project/XrayR) - Backend architecture reference
+- [cedar2025/Xboard](https://github.com/cedar2025/Xboard) - Modern panel support
+
+---
+
+## ⚠️ Disclaimer
+
+- This is an open-source project provided strictly for technical research and educational purposes.
+- The author assumes no responsibility for any direct or indirect consequences arising from the use of this project.

@@ -1,6 +1,8 @@
-# V2bX v1.0 管理脚本与自动化部署指南
+# V2bX-Patched-By-Haman v1.0
 
-本仓库提供基于 **Sing-Box 1.14+** 核心、针对精简版 Xboard 后端定制重构的 **V2bX v1.0** 自动化管理脚本与编译产物。
+[English Document](README.en.md) | [中文文档](README.md)
+
+本仓库提供基于 **Sing-Box 1.14+** 核心、针对 **Xboard** 机器模式精简重构的 **V2bX-Patched-By-Haman v1.0** 自动化管理脚本与编译源码。
 
 **V2bX** 是专为 **Xboard** 打造的高性能节点服务端（修改自 XrayR 并基于 Sing-Box 内核），支持单实例通过机器模式对接面板。
 
@@ -11,13 +13,11 @@
 ### 1. 对接面板支持
 - **Xboard**（推荐，完美支持 Machines 机器模式）
 
-### 2. 本构建版本实际支持协议
-本分支版本已针对常用现代协议进行精简重构，目前后端实际解析支持：
+### 2. 支持协议
+本重构版本专注于现代高效协议，已剔除旧协议（VMess/Trojan/Shadowsocks）：
 - **VLESS** (支持 Reality / XTLS / AnyTLS)
 - **Hysteria 2**
 - **AnyTLS**
-
-> ⚠️ **注意**：原版 V2bX 部分旧协议（如 VMess/Trojan/Shadowsocks）在本精简分支中已被剥离，以保持 Sing-Box 1.14+ 下的高效与轻量。
 
 ### 3. 节点管理功能矩阵
 
@@ -51,7 +51,7 @@ bash <(curl -fsSL "https://raw.githubusercontent.com/zwgundam/V2bX-Patched-By-Ha
 
 ```text
 =================================================
- V2bX 管理脚本 v1.0 (Sing-Box 1.14+ 专属重构版)
+ V2bX-Patched-By-Haman v1.0 (Sing-Box 1.14+ 重构版)
  物理运行状态: [ 运行中 ] (已开启开机自启)
 =================================================
   1. 安装 V2bX
@@ -95,18 +95,28 @@ bash <(curl -fsSL "https://raw.githubusercontent.com/zwgundam/V2bX-Patched-By-Ha
    - 菜单选项 `2` 支持内核二进制、管理脚本本体及 Sing-Box 1.14+ 规则的三合一更新。
    - 更新过程附带三重完整性校验（文件大小、语法检测、特征标识），并通过 `exec` 进行进程原子重载，杜绝自我覆盖导致的字节错乱。
 
-4. **精确的服务状态探测**
-   - 多路扫描 `V2bX.service` / `v2bx.service` 及进程列表 `pgrep`，准确判定运行与开机自启状态。
+---
+
+## ☕ 赞赏 (Buy Me A Coffee)
+
+如果你觉得本项目对你有帮助，欢迎赞赏支持开发者的持续维护！
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange.svg?style=flat&logo=buy-me-a-coffee)](https://www.buymeacoffee.com)
 
 ---
 
-## 📁 共享文件夹说明
+## 🙏 致谢 (Thanks)
 
-共享入口：`https://jp.671152.xyz/p/armjp%EF%BC%88local%EF%BC%89/root/.openclaw/workspace/haman-pub/v2bx/`
+本项目基于开源社区优秀项目二次重构，特别感谢以下开源先驱：
 
-包含的文件列表：
-- `v2bx.sh` —— V2bX v1.0 物理管理脚本
-- `v2bx-linux-arm64` —— 支持 QUIC/gRPC/gVisor/WireGuard 的 ARM64 编译二进制
-- `v2bx-linux-amd64` —— 支持 QUIC/gRPC/gVisor/WireGuard 的 x86-64 编译二进制
-- `README.md` —— 本使用文档
+- [wyx2685/V2bX](https://github.com/wyx2685/V2bX) & [MoeclubM/V2bX](https://github.com/MoeclubM/V2bX) - 原 V2bX 服务端架构
+- [SagerNet/sing-box](https://github.com/SagerNet/sing-box) - 强大的通用网络代理引擎
+- [XrayR-project/XrayR](https://github.com/XrayR-project/XrayR) - 优秀的后端架构参考
+- [cedar2025/Xboard](https://github.com/cedar2025/Xboard) - 现代化面板支持
 
+---
+
+## ⚠️ 免责声明 (Disclaimer)
+
+- 本项目为开源免费项目，仅供个人技术交流与学习使用，严禁用于任何违法违规用途。
+- 不对任何人使用本项目造成的任何直接或间接损失承担责任。
