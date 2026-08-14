@@ -512,12 +512,10 @@ show_menu() {
     echo -e " ${CYAN}8.${RESET} 查看 V2bX 实时日志"
     echo -e "-------------------------------------------------"
     echo -e " ${CYAN}9.${RESET} 交互式配置 V2bX (ApiHost/ApiKey/NodeID)"
-    echo -e " ${CYAN}10.${RESET} 生成 Reality/X25519 密钥对"
-    echo -e " ${CYAN}11.${RESET} 同步系统时间"
-    echo -e " ${CYAN}12.${RESET} 设置/取消开机自启"
+    echo -e " ${CYAN}10.${RESET} 设置/取消开机自启"
     echo -e "${GREEN}=================================================${RESET}"
 
-    read -p " 请选择操作 [0-12]: " choice
+    read -p " 请选择操作 [0-10]: " choice
     case "${choice}" in
         0)
             exit 0
@@ -550,12 +548,6 @@ show_menu() {
             configure_v2bx
             ;;
         10)
-            generate_x25519
-            ;;
-        11)
-            sync_time
-            ;;
-        12)
             if [[ "${IS_ENABLED}" == "true" ]]; then
                 systemctl disable V2bX && echo -e "${YELLOW}开机自启已取消！${RESET}"
             else
@@ -563,7 +555,7 @@ show_menu() {
             fi
             ;;
         *)
-            echo -e "${RED}请输入有效选项 [0-12]！${RESET}"
+            echo -e "${RED}请输入有效选项 [0-10]！${RESET}"
             ;;
     esac
 }
@@ -598,14 +590,8 @@ if [[ $# -gt 0 ]]; then
         config)
             configure_v2bx
             ;;
-        x25519)
-            generate_x25519
-            ;;
-        synctime)
-            sync_time
-            ;;
         *)
-            echo -e "用法: $0 {install|update|uninstall|start|stop|restart|status|log|config|x25519|synctime}"
+            echo -e "用法: $0 {install|update|uninstall|start|stop|restart|status|log|config}"
             exit 1
             ;;
     esac
