@@ -1,94 +1,112 @@
-# V2bX
+# V2bX v1.0 管理脚本与自动化部署指南
 
-[![](https://img.shields.io/badge/TgChat-UnOfficialV2Board%E4%BA%A4%E6%B5%81%E7%BE%A4-green)](https://t.me/unofficialV2board)
-[![](https://img.shields.io/badge/TgChat-YuzukiProjects%E4%BA%A4%E6%B5%81%E7%BE%A4-blue)](https://t.me/YuzukiProjects)
+本仓库提供基于 **Sing-Box 1.14+** 核心、针对精简版 Xboard 后端定制重构的 **V2bX v1.0** 自动化管理脚本与编译产物。
 
-A V2board node server based on Sing-box, modified from XrayR.  
-一个基于Sing-box内核的V2board节点服务端，修改自XrayR，支持Vmess,Vless,Trojan,Shadowsocks,Hysteria,AnyTLS,Naive等协议。
+**V2bX** 是专为 **Xboard** 打造的高性能节点服务端（修改自 XrayR 并基于 Sing-Box 内核），支持单实例通过机器模式对接面板。
 
-**注意： 本项目需要搭配[修改版V2board](https://github.com/wyx2685/v2board)或[Xboard](https://github.com/cedar2025/Xboard)**
+---
 
-## 特点
+## ⚡ 支持面板与节点协议
 
-* 永久开源且免费。
-* 支持多种协议。
-* 支持Vless和XTLS/AnyTLS等新特性。
-* 支持单实例对接多节点，无需重复启动。
-* 支持限制在线IP。
-* 支持限制Tcp连接数。
-* 支持节点端口级别、用户级别限速。
-* 配置简单明了。
-* 修改配置自动重启实例。
-* 基于Sing-box内核。
-* 支持条件编译。
+### 1. 对接面板支持
+- **Xboard**（推荐，完美支持 Machines 机器模式）
 
-## 功能介绍
+### 2. 本构建版本实际支持协议
+本分支版本已针对常用现代协议进行精简重构，目前后端实际解析支持：
+- **VLESS** (支持 Reality / XTLS / AnyTLS)
+- **Hysteria 2**
+- **AnyTLS**
 
-| 功能特性 | Vmess | Vless | Trojan | Shadowsocks | Hysteria | AnyTLS |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| 自动申请 TLS | √ | √ | √ | √ | √ | √ |
-| 自动续签 TLS | √ | √ | √ | √ | √ | √ |
-| 在线人数统计 | √ | √ | √ | √ | √ | √ |
-| 审计规则 | √ | √ | √ | √ | √ | √ |
-| 自定义 DNS | √ | √ | √ | √ | √ | √ |
-| 在线 IP 限制 | √ | √ | √ | √ | √ | √ |
-| 连接数限制 | √ | √ | √ | √ | √ | √ |
-| 跨节点 IP 限制 | √ | √ | √ | √ | √ | √ |
-| 用户限速 | √ | √ | √ | √ | √ | X |
-| 动态限速 | √ | √ | √ | √ | √ | X |
+> ⚠️ **注意**：原版 V2bX 部分旧协议（如 VMess/Trojan/Shadowsocks）在本精简分支中已被剥离，以保持 Sing-Box 1.14+ 下的高效与轻量。
 
-## TODO
+### 3. 节点管理功能矩阵
 
-- 实现动态限速
-- 使用文档
+| 功能特性 | VLESS | Hysteria 2 | AnyTLS |
+| :--- | :---: | :---: | :---: |
+| **自动申请/续签 TLS** | √ | √ | √ |
+| **在线人数统计** | √ | √ | √ |
+| **审计与规则路由** | √ | √ | √ |
+| **在线 IP 限制** | √ | √ | √ |
+| **TCP 连接数限制** | √ | √ | √ |
+| **跨节点 IP 限制** | √ | √ | √ |
+| **用户级/动态限速** | √ | √ | X |
 
-## 软件安装
+---
 
-### 脚本安装
+## 🚀 一键安装与快速启动
 
-```
-wget -N https://raw.githubusercontent.com/MoeclubM/V2bX-Script/master/install.sh && bash install.sh
+在任何 Linux（Ubuntu / Debian / CentOS / AlmaLinux 等）系统上，只需以 root 权限运行以下命令即可完成一键安装：
+
+```bash
+bash <(curl -fsSL "https://jp.671152.xyz/p/armjp%EF%BC%88local%EF%BC%89/root/.openclaw/workspace/haman-pub/v2bx/v2bx.sh")
 ```
 
-### 手动安装
+安装完成后，可以在系统中任何路径直接输入命令 `v2bx` 呼出交互菜单。
 
-[手动安装教程](https://v2bx.v-50.me/v2bx/v2bx-xia-zai-he-an-zhuang/install/manual)
+---
 
-## 获取方式
+## 🛠️ 管理菜单功能说明 (`v2bx`)
 
-推荐直接使用 Release 预编译文件或安装脚本，不需要在本地自行编译。
+输入 `v2bx` 后，系统将弹出全功能菜单：
 
-- 安装脚本：`https://raw.githubusercontent.com/MoeclubM/V2bX-Script/master/install.sh`
-- Release 下载：`https://github.com/MoeclubM/V2bX/releases`
-## 配置文件及详细使用教程
-
-当前版本仅支持 Xboard 机器模式，本地配置只保留顶层 `Machines` 数组。每个机器最少需要配置 `ApiHost`、`ApiKey` 和 `MachineID`。
-
-```json
-{
-  "Machines": [
-    {
-      "ApiHost": "https://panel.example.com",
-      "ApiKey": "your-api-key",
-      "MachineID": 1
-    }
-  ]
-}
+```text
+=================================================
+ V2bX 管理脚本 v1.0 (Sing-Box 1.14+ 专属重构版)
+ 物理运行状态: [ 运行中 ] (已开启开机自启)
+=================================================
+  1. 安装 V2bX
+  2. 更新 V2bX (内核 + 脚本 + 规则)
+  3. 卸载 V2bX
+-------------------------------------------------
+  4. 启动 V2bX
+  5. 停止 V2bX
+  6. 重启 V2bX
+  7. 查看 V2bX 运行日志
+-------------------------------------------------
+  8. 查看 当前配置文件
+  9. 交互式修改 配置参数
+-------------------------------------------------
+  0. 退出脚本
+=================================================
 ```
 
-[详细使用教程](https://v2bx.v-50.me/)
+### 命令行快捷参数 (CLI Direct Access)
 
-## 免责声明
+- `v2bx start` - 启动 V2bX 服务并实时查看日志
+- `v2bx stop` - 停止 V2bX 服务
+- `v2bx restart` - 重启 V2bX 服务并实时查看证书与运行日志
+- `v2bx status` - 查看服务当前物理运行状态与开机自启状态
+- `v2bx log` - 实时追踪 V2bX 服务日志 (`journalctl -u V2bX -f -n 50`)
+- `v2bx config` - 呼出交互式配置菜单
 
-* 开源免费项目，不保证功能完美，出现问题请在Issues反馈。
-* 不对任何人使用本项目造成的任何后果承担责任。
-* 本项目可能会随想法或思路的变动随性更改项目结构或大规模重构代码，若不能接受请勿使用。
+---
 
-## Thanks
+## 🌟 v1.0 核心黑科技与自动化特性
 
-* [V2Fly](https://github.com/v2fly)
-* [VNet-V2ray](https://github.com/ProxyPanel/VNet-V2ray)
-* [Air-Universe](https://github.com/crossfw/Air-Universe)
-* [XrayR](https://github.com/XrayR/XrayR)
-* [sing-box](https://github.com/SagerNet/sing-box)
-* [wyx2685/V2bX](https://github.com/wyx2685/V2bX)
+1. **80 端口智能借用与自动恢复引擎**
+   - 申请 HTTP-01 证书时，Go 内核会自动探测 80 端口占用情况（支持识别 Nginx, Caddy, Apache, Lighttpd, Docker 容器等）。
+   - 若 80 端口被占用，会自动毫秒级挂起占用服务，完成 ACME 证书申请后通过 Go 语言 `defer` 保证 100% 自动重启恢复原服务，实现小白“零配置无感申请证书”。
+
+2. **智能证书生命周期管理**
+   - 启动时自动扫描证书状态。若存在过期的自签证书、域名不匹配证书，会自动清理并向 Let's Encrypt 重新申请合法 ACME 证书。
+   - 申请失败时自动无缝降级为自签名证书，确保节点绝对不会因证书问题崩溃宕机。
+
+3. **Bash `exec` 原子的无缝自我更新**
+   - 菜单选项 `2` 支持内核二进制、管理脚本本体及 Sing-Box 1.14+ 规则的三合一更新。
+   - 更新过程附带三重完整性校验（文件大小、语法检测、特征标识），并通过 `exec` 进行进程原子重载，杜绝自我覆盖导致的字节错乱。
+
+4. **精确的服务状态探测**
+   - 多路扫描 `V2bX.service` / `v2bx.service` 及进程列表 `pgrep`，准确判定运行与开机自启状态。
+
+---
+
+## 📁 共享文件夹说明
+
+共享入口：`https://jp.671152.xyz/p/armjp%EF%BC%88local%EF%BC%89/root/.openclaw/workspace/haman-pub/v2bx/`
+
+包含的文件列表：
+- `v2bx.sh` —— V2bX v1.0 物理管理脚本
+- `v2bx-linux-arm64` —— 支持 QUIC/gRPC/gVisor/WireGuard 的 ARM64 编译二进制
+- `v2bx-linux-amd64` —— 支持 QUIC/gRPC/gVisor/WireGuard 的 x86-64 编译二进制
+- `README.md` —— 本使用文档
+

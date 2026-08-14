@@ -112,14 +112,8 @@ func (b *Sing) Close() error {
 
 func (b *Sing) Protocols() []string {
 	return []string{
-		"vmess",
 		"vless",
-		"shadowsocks",
-		"trojan",
-		"naive",
-		"tuic",
 		"anytls",
-		"hysteria",
 		"hysteria2",
 	}
 }

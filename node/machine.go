@@ -167,26 +167,31 @@ func (m *Machine) syncNodes(nodes []panel.MachineNode, strict bool) error {
 	}
 	started := make([]int, 0, len(nodes))
 	for i := range nodes {
-		if _, ok := m.controllers[nodes[i].Id]; ok {
-			continue
-		}
-		controller, err := m.newController(nodes[i])
-		if err != nil {
-			if !strict {
+		if existing, ok := m.controllers[nodes[i].Id]; ok {
+			// Always reload the controller to ensure fresh config from panel
+			// MachineNode from /api/v2/server/machine/nodes only carries {Id,Type,Name},
+			// so we cannot fingerprint changes client-side. Reload-on-sync is the safe path.
+			log.WithFields(log.Fields{
+				"machine_id": m.config.ApiConfig.MachineID,
+				"node_id":    nodes[i].Id,
+			}).Info("Machine node sync, reloading controller to ensure fresh config")
+			if closeErr := existing.Close(); closeErr != nil {
 				log.WithFields(log.Fields{
 					"machine_id": m.config.ApiConfig.MachineID,
 					"node_id":    nodes[i].Id,
-					"err":        err,
-				}).Error("Start machine node failed")
-				continue
+					"err":        closeErr,
+				}).Error("Close old machine node controller failed")
 			}
-			for j := range started {
-				if closeErr := m.controllers[started[j]].Close(); closeErr != nil {
-					panic(closeErr)
-				}
-				delete(m.controllers, started[j])
-			}
-			return err
+			delete(m.controllers, nodes[i].Id)
+		}
+		controller, err := m.newController(nodes[i])
+		if err != nil {
+			log.WithFields(log.Fields{
+				"machine_id": m.config.ApiConfig.MachineID,
+				"node_id":    nodes[i].Id,
+				"err":        err,
+			}).Error("Start machine node failed")
+			continue
 		}
 		m.controllers[nodes[i].Id] = controller
 		started = append(started, nodes[i].Id)

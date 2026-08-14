@@ -100,6 +100,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 		if len(c.Options.Name) == 0 {
 			oldTag := c.tag
 			c.tag = c.buildNodeTag(newN)
+			_ = c.server.DelNode(oldTag)
 			// Remove Old limiter
 			limiter.DeleteLimiter(oldTag)
 			// Add new Limiter
@@ -142,7 +143,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			log.WithFields(log.Fields{
 				"tag": c.tag,
 				"err": err,
-			}).Panic("Add node failed")
+			}).Error("Add node failed")
 			return nil
 		}
 		_, err = c.server.AddUsers(&vCore.AddUsersParams{

@@ -29,16 +29,11 @@ type NodeInfo struct {
 	RawDNS       RawDNS
 	Rules        Rules
 
-	// origin
-	VAllss      *VAllssNode
-	Shadowsocks *ShadowsocksNode
-	Trojan      *TrojanNode
-	Tuic        *TuicNode
-	AnyTls      *AnyTlsNode
-	Naive       *NaiveNode
-	Hysteria    *HysteriaNode
-	Hysteria2   *Hysteria2Node
-	Common      *CommonNode
+	// active protocols only: vless, anytls, hysteria2
+	VLESS     *VAllssNode
+	AnyTls    *AnyTlsNode
+	Hysteria2 *Hysteria2Node
+	Common    *CommonNode
 }
 
 type CommonNode struct {
@@ -63,7 +58,7 @@ type BaseConfig struct {
 	PullInterval any `json:"pull_interval"`
 }
 
-// VAllssNode is vmess and vless node info
+// VAllssNode is reused for vless only in this build (vmess support removed)
 type VAllssNode struct {
 	CommonNode
 	Tls                 int                   `json:"tls"`
@@ -117,49 +112,10 @@ type RealityConfig struct {
 	MaxTimeDiff  string `json:"MaxTimeDiff"`
 }
 
-type ShadowsocksNode struct {
-	CommonNode
-	Cipher    string `json:"cipher"`
-	ServerKey string `json:"server_key"`
-}
-
-type TrojanNode struct {
-	CommonNode
-	Tls                 int                   `json:"tls"`
-	TlsSettings         TlsSettings           `json:"tls_settings"`
-	TlsSettingsBack     *TlsSettings          `json:"tlsSettings"`
-	Network             string                `json:"network"`
-	NetworkSettings     json.RawMessage       `json:"network_settings"`
-	NetworkSettingsBack json.RawMessage       `json:"networkSettings"`
-	Multiplex           *conf.MultiplexConfig `json:"multiplex"`
-}
-
-type TuicNode struct {
-	CommonNode
-	TlsSettings       TlsSettings `json:"tls_settings"`
-	CongestionControl string      `json:"congestion_control"`
-	ZeroRTTHandshake  bool        `json:"zero_rtt_handshake"`
-}
-
 type AnyTlsNode struct {
 	CommonNode
 	TlsSettings   TlsSettings `json:"tls_settings"`
 	PaddingScheme StringList  `json:"padding_scheme,omitempty"`
-}
-
-type NaiveNode struct {
-	CommonNode
-	Tls             int          `json:"tls"`
-	TlsSettings     TlsSettings  `json:"tls_settings"`
-	TlsSettingsBack *TlsSettings `json:"tlsSettings"`
-}
-
-type HysteriaNode struct {
-	CommonNode
-	TlsSettings TlsSettings `json:"tls_settings"`
-	UpMbps      int         `json:"up_mbps"`
-	DownMbps    int         `json:"down_mbps"`
-	Obfs        string      `json:"obfs"`
 }
 
 type Hysteria2Node struct {
@@ -227,7 +183,8 @@ func normalizeResponseNodeType(requestedType string, meta nodeResponseMeta) (str
 	}
 	switch nodeType {
 	case "v2ray":
-		nodeType = "vmess"
+		// legacy alias kept for compatibility — treated as vless
+		nodeType = "vless"
 	case "hysteria":
 		if meta.Version == 2 {
 			nodeType = "hysteria2"
@@ -314,10 +271,10 @@ func newNodeInfo(nodeID int) *NodeInfo {
 func decodeNodeInfoBody(body []byte, node *NodeInfo) (*NodeInfo, error) {
 	var cm *CommonNode
 	switch node.Type {
-	case "vmess", "vless":
+	case "vless":
 		rsp := &VAllssNode{}
 		if err := json.Unmarshal(body, rsp); err != nil {
-			return nil, fmt.Errorf("decode v2ray params error: %s", err)
+			return nil, fmt.Errorf("decode vless params error: %s", err)
 		}
 		if len(rsp.NetworkSettingsBack) > 0 {
 			rsp.NetworkSettings = rsp.NetworkSettingsBack
@@ -328,44 +285,8 @@ func decodeNodeInfoBody(body []byte, node *NodeInfo) (*NodeInfo, error) {
 			rsp.TlsSettingsBack = nil
 		}
 		cm = &rsp.CommonNode
-		node.VAllss = rsp
-		node.Security = node.VAllss.Tls
-	case "shadowsocks":
-		rsp := &ShadowsocksNode{}
-		if err := json.Unmarshal(body, rsp); err != nil {
-			return nil, fmt.Errorf("decode shadowsocks params error: %s", err)
-		}
-		cm = &rsp.CommonNode
-		node.Shadowsocks = rsp
-		node.Security = None
-	case "trojan":
-		rsp := &TrojanNode{}
-		if err := json.Unmarshal(body, rsp); err != nil {
-			return nil, fmt.Errorf("decode trojan params error: %s", err)
-		}
-		if len(rsp.NetworkSettingsBack) > 0 {
-			rsp.NetworkSettings = rsp.NetworkSettingsBack
-			rsp.NetworkSettingsBack = nil
-		}
-		if rsp.TlsSettingsBack != nil {
-			rsp.TlsSettings = *rsp.TlsSettingsBack
-			rsp.TlsSettingsBack = nil
-		}
-		cm = &rsp.CommonNode
-		node.Trojan = rsp
-		if rsp.Tls == Reality {
-			node.Security = Reality
-		} else {
-			node.Security = Tls
-		}
-	case "tuic":
-		rsp := &TuicNode{}
-		if err := json.Unmarshal(body, rsp); err != nil {
-			return nil, fmt.Errorf("decode tuic params error: %s", err)
-		}
-		cm = &rsp.CommonNode
-		node.Tuic = rsp
-		node.Security = Tls
+		node.VLESS = rsp
+		node.Security = node.VLESS.Tls
 	case "anytls":
 		rsp := &AnyTlsNode{}
 		if err := json.Unmarshal(body, rsp); err != nil {
@@ -373,14 +294,6 @@ func decodeNodeInfoBody(body []byte, node *NodeInfo) (*NodeInfo, error) {
 		}
 		cm = &rsp.CommonNode
 		node.AnyTls = rsp
-		node.Security = Tls
-	case "hysteria":
-		rsp := &HysteriaNode{}
-		if err := json.Unmarshal(body, rsp); err != nil {
-			return nil, fmt.Errorf("decode hysteria params error: %s", err)
-		}
-		cm = &rsp.CommonNode
-		node.Hysteria = rsp
 		node.Security = Tls
 	case "hysteria2":
 		rsp := &Hysteria2Node{}
@@ -390,20 +303,8 @@ func decodeNodeInfoBody(body []byte, node *NodeInfo) (*NodeInfo, error) {
 		cm = &rsp.CommonNode
 		node.Hysteria2 = rsp
 		node.Security = Tls
-	case "naive":
-		rsp := &NaiveNode{}
-		if err := json.Unmarshal(body, rsp); err != nil {
-			return nil, fmt.Errorf("decode naive params error: %s", err)
-		}
-		if rsp.TlsSettingsBack != nil {
-			rsp.TlsSettings = *rsp.TlsSettingsBack
-			rsp.TlsSettingsBack = nil
-		}
-		cm = &rsp.CommonNode
-		node.Naive = rsp
-		node.Security = rsp.Tls
 	default:
-		return nil, fmt.Errorf("unsupported node type returned by panel: %s", node.Type)
+		return nil, fmt.Errorf("unsupported node type returned by panel: %s (only vless/anytls/hysteria2 are supported in this build)", node.Type)
 	}
 	if cm == nil {
 		return nil, fmt.Errorf("decode node params error: missing common config")
@@ -456,29 +357,13 @@ func finalizeNodeInfo(node *NodeInfo, cm *CommonNode) error {
 
 func (n *NodeInfo) ECH() *ECHSettings {
 	switch n.Type {
-	case "vmess", "vless":
-		if n.VAllss != nil {
-			return n.VAllss.TlsSettings.ECH
-		}
-	case "trojan":
-		if n.Trojan != nil {
-			return n.Trojan.TlsSettings.ECH
-		}
-	case "naive":
-		if n.Naive != nil {
-			return n.Naive.TlsSettings.ECH
-		}
-	case "tuic":
-		if n.Tuic != nil {
-			return n.Tuic.TlsSettings.ECH
+	case "vless":
+		if n.VLESS != nil {
+			return n.VLESS.TlsSettings.ECH
 		}
 	case "anytls":
 		if n.AnyTls != nil {
 			return n.AnyTls.TlsSettings.ECH
-		}
-	case "hysteria":
-		if n.Hysteria != nil {
-			return n.Hysteria.TlsSettings.ECH
 		}
 	case "hysteria2":
 		if n.Hysteria2 != nil {

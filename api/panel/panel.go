@@ -59,20 +59,15 @@ func New(c *conf.ApiConfig) (*Client, error) {
 	nodeType := strings.ToLower(strings.TrimSpace(c.NodeType))
 	switch nodeType {
 	case "v2ray":
-		nodeType = "vmess"
+		// legacy alias kept for compatibility — treated as vless
+		nodeType = "vless"
 	case
 		"v2node",
-		"vmess",
-		"trojan",
-		"shadowsocks",
-		"naive",
-		"hysteria",
 		"hysteria2",
-		"tuic",
 		"anytls",
 		"vless":
 	default:
-		return nil, fmt.Errorf("unsupported Node type: %s", c.NodeType)
+		return nil, fmt.Errorf("unsupported Node type: %s (only vless/anytls/hysteria2 are supported in this build)", c.NodeType)
 	}
 	if c.MachineID <= 0 {
 		return nil, fmt.Errorf("machine id is required")

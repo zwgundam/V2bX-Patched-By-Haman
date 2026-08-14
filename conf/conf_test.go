@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"encoding/json/v2"
+	"github.com/go-json-experiment/json"
 )
 
 func TestConfLoadFromPath(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/MoeclubM/V2bX/common/json5"
 
-	"encoding/json/v2"
+	"github.com/go-json-experiment/json"
 )
 
 type Conf struct {

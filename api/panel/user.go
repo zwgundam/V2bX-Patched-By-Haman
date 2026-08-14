@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"encoding/json/jsontext"
-	"encoding/json/v2"
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 
 	"github.com/vmihailenco/msgpack/v5"
 )

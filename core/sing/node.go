@@ -1,13 +1,13 @@
 package sing
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/sagernet/sing-box/log"
 	"time"
 
 	"encoding/json"
@@ -15,7 +15,6 @@ import (
 	"github.com/MoeclubM/V2bX/api/panel"
 	"github.com/MoeclubM/V2bX/conf"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/auth"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json/badoption"
 )
@@ -68,15 +67,8 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 		TCPFastOpen: c.SingOptions.TCPFastOpen,
 	}
 	multiplexConfig := c.SingOptions.Multiplex
-	switch info.Type {
-	case "vmess", "vless":
-		if info.VAllss != nil && info.VAllss.Multiplex != nil {
-			multiplexConfig = info.VAllss.Multiplex
-		}
-	case "trojan":
-		if info.Trojan != nil && info.Trojan.Multiplex != nil {
-			multiplexConfig = info.Trojan.Multiplex
-		}
+	if info.Type == "vless" && info.VLESS != nil && info.VLESS.Multiplex != nil {
+		multiplexConfig = info.VLESS.Multiplex
 	}
 	var multiplex *option.InboundMultiplexOptions
 	if multiplexConfig != nil {
@@ -117,15 +109,24 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 		}
 	case panel.Reality:
 		tls.Enabled = true
-		v := info.VAllss
-		tls.ServerName = v.TlsSettings.ServerName
+		v := info.VLESS
+		serverName := v.TlsSettings.ServerName
 		port, _ := strconv.Atoi(v.TlsSettings.ServerPort)
+		if port == 0 {
+			port = 443
+		}
 		var dest string
 		if v.TlsSettings.Dest != "" {
 			dest = v.TlsSettings.Dest
 		} else {
-			dest = tls.ServerName
+			dest = serverName
 		}
+		if serverName == "" && dest != "" {
+			// 如果 ServerName 未填，自动提取 dest 的主机名/域名作为 SNI
+			serverName = strings.Split(dest, ":")[0]
+			log.Info(fmt.Sprintf("REALITY ServerName is empty, auto-fallback to dest host (%s) for tag %s", serverName, tag))
+		}
+		tls.ServerName = serverName
 
 		mtd, _ := time.ParseDuration(v.RealityConfig.MaxTimeDiff)
 		tls.Reality = &option.InboundRealityOptions{
@@ -155,8 +156,8 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 		Tag: tag,
 	}
 	switch info.Type {
-	case "vmess", "vless":
-		n := info.VAllss
+	case "vless":
+		n := info.VLESS
 		t := option.V2RayTransportOptions{
 			Type: n.Network,
 		}
@@ -168,7 +169,6 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 				if err != nil {
 					return option.Inbound{}, fmt.Errorf("decode NetworkSettings error: %s", err)
 				}
-				//Todo fix http options
 				if network.Header.Type == "http" {
 					t.Type = network.Header.Type
 					var request HttpRequest
@@ -272,111 +272,8 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 		case "quic":
 			t.QUICOptions = option.V2RayQUICOptions{}
 		}
-		if info.Type == "vless" {
-			in.Type = "vless"
-			in.Options = &option.VLESSInboundOptions{
-				ListenOptions: listen,
-				InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
-					TLS: &tls,
-				},
-				Transport: &t,
-				Multiplex: multiplex,
-			}
-		} else {
-			in.Type = "vmess"
-			in.Options = &option.VMessInboundOptions{
-				ListenOptions: listen,
-				InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
-					TLS: &tls,
-				},
-				Transport: &t,
-				Multiplex: multiplex,
-			}
-		}
-	case "shadowsocks":
-		in.Type = "shadowsocks"
-		n := info.Shadowsocks
-		var keyLength int
-		switch n.Cipher {
-		case "2022-blake3-aes-128-gcm":
-			keyLength = 16
-		case "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305":
-			keyLength = 32
-		default:
-			keyLength = 16
-		}
-		ssoption := &option.ShadowsocksInboundOptions{
-			ListenOptions: listen,
-			Method:        n.Cipher,
-			Multiplex:     multiplex,
-		}
-		p := make([]byte, keyLength)
-		_, _ = rand.Read(p)
-		randomPasswd := string(p)
-		if strings.Contains(n.Cipher, "2022") {
-			ssoption.Password = n.ServerKey
-			randomPasswd = base64.StdEncoding.EncodeToString([]byte(randomPasswd))
-		}
-		ssoption.Users = []option.ShadowsocksUser{{
-			Password: randomPasswd,
-		}}
-		in.Options = ssoption
-	case "trojan":
-		n := info.Trojan
-		t := option.V2RayTransportOptions{
-			Type: n.Network,
-		}
-		switch n.Network {
-		case "tcp":
-			t.Type = ""
-		case "ws":
-			var (
-				path    string
-				ed      int
-				headers map[string]badoption.Listable[string]
-			)
-			if len(n.NetworkSettings) != 0 {
-				network := WsNetworkConfig{}
-				err := json.Unmarshal(n.NetworkSettings, &network)
-				if err != nil {
-					return option.Inbound{}, fmt.Errorf("decode NetworkSettings error: %s", err)
-				}
-				var u *url.URL
-				u, err = url.Parse(network.Path)
-				if err != nil {
-					return option.Inbound{}, fmt.Errorf("parse path error: %s", err)
-				}
-				path = u.Path
-				ed, _ = strconv.Atoi(u.Query().Get("ed"))
-				headers = make(map[string]badoption.Listable[string], len(network.Headers))
-				for k, v := range network.Headers {
-					headers[k] = badoption.Listable[string]{
-						v,
-					}
-				}
-			}
-			t.WebsocketOptions = option.V2RayWebsocketOptions{
-				Path:                path,
-				EarlyDataHeaderName: "Sec-WebSocket-Protocol",
-				MaxEarlyData:        uint32(ed),
-				Headers:             headers,
-			}
-		case "grpc":
-			network := GrpcNetworkConfig{}
-			if len(n.NetworkSettings) != 0 {
-				err := json.Unmarshal(n.NetworkSettings, &network)
-				if err != nil {
-					return option.Inbound{}, fmt.Errorf("decode NetworkSettings error: %s", err)
-				}
-			}
-			t.GRPCOptions = option.V2RayGRPCOptions{
-				ServiceName: network.ServiceName,
-			}
-		default:
-			t.Type = ""
-		}
-		in.Type = "trojan"
-		trojanoption := &option.TrojanInboundOptions{
+		in.Type = "vless"
+		in.Options = &option.VLESSInboundOptions{
 			ListenOptions: listen,
 			InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
 				TLS: &tls,
@@ -384,66 +281,11 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 			Transport: &t,
 			Multiplex: multiplex,
 		}
-		if c.SingOptions.FallBackConfigs != nil {
-			// fallback handling
-			fallback := c.SingOptions.FallBackConfigs.FallBack
-			fallbackPort, err := strconv.Atoi(fallback.ServerPort)
-			if err == nil {
-				trojanoption.Fallback = &option.ServerOptions{
-					Server:     fallback.Server,
-					ServerPort: uint16(fallbackPort),
-				}
-			}
-			fallbackForALPNMap := c.SingOptions.FallBackConfigs.FallBackForALPN
-			fallbackForALPN := make(map[string]*option.ServerOptions, len(fallbackForALPNMap))
-			if err := processFallback(c, fallbackForALPN); err == nil {
-				trojanoption.FallbackForALPN = fallbackForALPN
-			}
-		}
-		in.Options = trojanoption
-	case "naive":
-		in.Type = "naive"
-		usernameBytes := make([]byte, 16)
-		passwordBytes := make([]byte, 16)
-		_, _ = rand.Read(usernameBytes)
-		_, _ = rand.Read(passwordBytes)
-		in.Options = &option.NaiveInboundOptions{
-			ListenOptions: listen,
-			Users: []auth.User{{
-				Username: base64.RawURLEncoding.EncodeToString(usernameBytes),
-				Password: base64.RawURLEncoding.EncodeToString(passwordBytes),
-			}},
-			InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
-				TLS: &tls,
-			},
-		}
-	case "tuic":
-		in.Type = "tuic"
-		tls.ALPN = append(tls.ALPN, "h3")
-		in.Options = &option.TUICInboundOptions{
-			ListenOptions:     listen,
-			CongestionControl: info.Tuic.CongestionControl,
-			ZeroRTTHandshake:  info.Tuic.ZeroRTTHandshake,
-			InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
-				TLS: &tls,
-			},
-		}
 	case "anytls":
 		in.Type = "anytls"
 		in.Options = &option.AnyTLSInboundOptions{
 			ListenOptions: listen,
 			PaddingScheme: []string(info.AnyTls.PaddingScheme),
-			InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
-				TLS: &tls,
-			},
-		}
-	case "hysteria":
-		in.Type = "hysteria"
-		in.Options = &option.HysteriaInboundOptions{
-			ListenOptions: listen,
-			UpMbps:        info.Hysteria.UpMbps,
-			DownMbps:      info.Hysteria.DownMbps,
-			Obfs:          info.Hysteria.Obfs,
 			InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
 				TLS: &tls,
 			},
@@ -472,6 +314,8 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 				TLS: &tls,
 			},
 		}
+	default:
+		return option.Inbound{}, fmt.Errorf("unsupported node type: %s", info.Type)
 	}
 	return in, nil
 }
@@ -483,24 +327,41 @@ func (b *Sing) AddNode(tag string, info *panel.NodeInfo, config *conf.Options) e
 		return err
 	}
 	in := b.box.Inbound()
-	err = in.Create(
-		b.ctx,
-		b.box.Router(),
-		b.logFactory.NewLogger(F.ToString("inbound/", c.Type, "[", tag, "]")),
-		tag,
-		c.Type,
-		c.Options,
-	)
+	_ = in.Remove(tag)
+	// Initial settle after remove
+	time.Sleep(200 * time.Millisecond)
 
-	if err != nil {
-		return fmt.Errorf("add inbound error: %s", err)
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		err = in.Create(
+			b.ctx,
+			b.box.Router(),
+			b.logFactory.NewLogger(F.ToString("inbound/", c.Type, "[", tag, "]")),
+			tag,
+			c.Type,
+			c.Options,
+		)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		errStr := err.Error()
+		// Retry only on transient bind/listen failures (port in TIME_WAIT, FD reclaim)
+		if !strings.Contains(errStr, "address already in use") && !strings.Contains(errStr, "bind:") {
+			return fmt.Errorf("add inbound error: %s", err)
+		}
+		log.Warn(fmt.Sprintf("add inbound retry %d/3 for tag %s: %s", attempt, tag, err))
+		// Re-remove to release any partial resources before retry
+		_ = in.Remove(tag)
+		time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
 	}
-	return nil
+	return fmt.Errorf("add inbound error after 3 retries: %s", lastErr)
 }
 
 func (b *Sing) DelNode(tag string) error {
 	in := b.box.Inbound()
 	err := in.Remove(tag)
+	time.Sleep(50 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("delete inbound error: %s", err)
 	}
