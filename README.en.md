@@ -104,7 +104,7 @@ Typing `v2bx` launches the interactive CLI menu:
 If you find this project helpful, feel free to support its ongoing development!
 
 - **Buy Me A Coffee**: [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange.svg?style=flat&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/zwgundam)
-- **USDT (Tron TRC20)**: `TN1e7j3JkK7UmkhRk7m9t6PM3tjPptgUW2`
+- **USDT (Solana)**: `D5t943MPXEhPhBoWqRaLDxPAHS6mbSXm9j5AGmFfxuM2`
 
 ---
 

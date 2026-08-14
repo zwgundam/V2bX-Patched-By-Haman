@@ -102,7 +102,7 @@ bash <(curl -fsSL "https://raw.githubusercontent.com/zwgundam/V2bX-Patched-By-Ha
 如果你觉得本项目对你有帮助，欢迎赞赏支持项目的持续维护！
 
 - **Buy Me A Coffee**: [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange.svg?style=flat&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/zwgundam)
-- **USDT (Tron TRC20)**: `TN1e7j3JkK7UmkhRk7m9t6PM3tjPptgUW2`
+- **USDT (Solana)**: `D5t943MPXEhPhBoWqRaLDxPAHS6mbSXm9j5AGmFfxuM2`
 
 ---
 
