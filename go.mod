@@ -5,9 +5,10 @@ go 1.25
 toolchain go1.25.0
 
 require (
-	github.com/beevik/ntp v1.4.4-0.20240716062501-06ef196b89ec
+	github.com/beevik/ntp v1.5.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-acme/lego/v4 v4.25.2
+	github.com/go-json-experiment/json v0.0.0-20250813024750-ebf49471dced
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/juju/ratelimit v1.0.2
 	github.com/sagernet/sing v0.8.11-0.20260514083559-7297f9541547
@@ -118,7 +119,6 @@ require (
 	github.com/go-chi/render v1.0.3 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
-	github.com/go-json-experiment/json v0.0.0-20250813024750-ebf49471dced // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
