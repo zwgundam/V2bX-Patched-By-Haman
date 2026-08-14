@@ -511,7 +511,7 @@ show_menu() {
     echo -e " ${CYAN}7.${RESET} 查看 V2bX 运行状态"
     echo -e " ${CYAN}8.${RESET} 查看 V2bX 实时日志"
     echo -e "-------------------------------------------------"
-    echo -e " ${CYAN}9.${RESET} 交互式配置 V2bX (ApiHost/ApiKey/NodeID)"
+    echo -e " ${CYAN}9.${RESET} 交互式配置 V2bX (ApiHost/ApiKey/MachineID)"
     echo -e " ${CYAN}10.${RESET} 设置/取消开机自启"
     echo -e "${GREEN}=================================================${RESET}"
 
