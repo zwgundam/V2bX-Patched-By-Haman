@@ -14,7 +14,7 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 RESET='\033[0m'
 
-# 直链物理下载根路径 (直接从 GitHub Releases 下载预编译二进制)
+# 直链物理下载根路径 (直接从 GitHub Releases 下载预编译二进制与最新脚本)
 BASE_URL="https://github.com/zwgundam/V2bX-Patched-By-Haman/releases/latest/download"
 RAW_SCRIPT_URL="https://raw.githubusercontent.com/zwgundam/V2bX-Patched-By-Haman/main/v2bx.sh"
 INSTALL_DIR="/usr/local/bin"
@@ -324,7 +324,6 @@ EOF_SVC
     echo -e "${GREEN} 任意目录下输入 'v2bx' 即可唤出图形管理菜单！${RESET}"
     echo -e "${GREEN}=================================================${RESET}"
     
-    # 引导用户完成首次面板配置 (configure_v2bx 内会询问是否启动服务并展示日志)
     configure_v2bx
 }
 
@@ -352,6 +351,11 @@ update_v2bx() {
         rm -f "${tmp_script}"
         return 1
     fi
+    if ! head -n 1 "${tmp_script}" | grep -q "^#\!"; then
+        echo -e "${RED}错误：下载内容缺少 Shebang 头 (#!)，跳过覆盖！${RESET}"
+        rm -f "${tmp_script}"
+        return 1
+    fi
     if ! bash -n "${tmp_script}" 2>/dev/null; then
         echo -e "${RED}错误：下载脚本语法校验失败，跳过覆盖！${RESET}"
         rm -f "${tmp_script}"
@@ -359,11 +363,6 @@ update_v2bx() {
     fi
     if ! grep -q "V2bX 管理脚本" "${tmp_script}"; then
         echo -e "${RED}错误：下载内容不是合法的 v2bx 脚本 (特征标识缺失)，跳过覆盖！${RESET}"
-        rm -f "${tmp_script}"
-        return 1
-    fi
-    if grep -iq "<\!doctype html" "${tmp_script}" || grep -iq "<html" "${tmp_script}"; then
-        echo -e "${RED}错误：下载到 HTML 错误页，跳过覆盖！${RESET}"
         rm -f "${tmp_script}"
         return 1
     fi
