@@ -12,7 +12,7 @@ require (
 	github.com/juju/ratelimit v1.0.2
 	github.com/sagernet/sing v0.8.11-0.20260514083559-7297f9541547
 	github.com/sagernet/sing-box v1.13.0
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	golang.org/x/crypto v0.48.0
