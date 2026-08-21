@@ -30,10 +30,17 @@
 - **原则**：`exec` 工具存在间歇性卡死或输出延迟。
 - **行动**：所有长期或敏感的 `exec` 任务（如 Git Push）必须使用 `process` 工具进行追踪和介入，不能盲目信任第一次 `exec` 的返回。
 
-## 3. 分发路径检查原则
-- **原则**：每次代码推送 (Push) 后，必须立即执行**源码工作区**到**本地分发目录**的同步操作。
-- **同步命令**：
-    \`\`\`bash
-    cp -f /root/.openclaw/workspace/v2bx-custom/v2bx.sh /root/.openclaw/workspace/haman-pub/v2bx/v2bx.sh
-    \`\`\`
-- **目标**：确保用户从公开分发路径 (`haman-pub`) 下载的文件始终与 GitHub `main` 分支保持一致。
+## 3. 分发路径与全自动发布流水线 (2026-08-22 升级锁死)
+- **核心痛点**：过去仅更新 Git 源码或本地 `haman-pub`，而用户脚本始终从 GitHub Releases (`/releases/latest/download`) 拉取资产，导致用户执行更新时反复拉取到旧版残缺二进制，引发“开倒车”与每分钟闪断。
+- **闭环标准流水线**：`/root/.openclaw/workspace/v2bx-custom/scripts/git_push_safe.sh` 已固化为五步闭环：
+  1. `go build` 全架构（amd64 / arm64）编译并注入完整 tags (`with_utls with_quic with_grpc with_wireguard with_acme with_gvisor`)；
+  2. 物理同步本地镜像目录 `haman-pub/v2bx/`；
+  3. `bash -n` 语法自检；
+  4. 提交本地 Git 并安全推送 `main` 分支；
+  5. 自动调用 GitHub API 删除并原子上传 Releases 最新构建资产。
+- **发布铁律**：严禁仅手动 git commit，所有版本发布必须且只能通过 `git_push_safe.sh` 触发，确保 GitHub 代码、本地镜像与 GitHub Releases 资产三位一体绝对对齐！
+
+## 4. Xboard Machine 模式每分钟闪断根因与修复 (2026-08-22)
+- **现象**：服务端运行正常，但面板节点每隔 60 秒显示离线后瞬间恢复。
+- **根因**：`Machine.syncNodes()` 轮询时无脑 `Close()` 销毁已有 Controller 并重建，导致 Sing-box 流量统计与入站每分钟重置。
+- **修复**：`syncNodes` 检查控制器存在即 `continue` 复用，配置变更由内部 `nodeInfoMonitor` ETag 机制平滑更新。
